@@ -1,0 +1,54 @@
+@use '../../styles/variables.scss' as *;
+
+.priceDisplay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background-color: rgba($block-color, 0.3);
+  border-radius: $border-radius-md;
+  border: 1px solid $border-color;
+}
+
+.priceValue {
+  font-size: 2rem;
+  font-weight: bold;
+  color: $text-color;
+  font-family: 'Courier New', monospace;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  font-size: 0.875rem;
+  color: $text-color;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  
+  .connected & {
+    background-color: $accent-color;
+    animation: pulse 2s infinite;
+  }
+  
+  .disconnected & {
+    background-color: #ff4444;
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+@media (max-width: $mobile) {
+  .priceValue {
+    font-size: 1.5rem;
+  }
+}
