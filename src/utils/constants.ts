@@ -13,9 +13,9 @@ export const BREAKPOINTS = {
   DESKTOP: 1200
 } as const;
 
-export const WEBSOCKET_CONFIG = {
-  URL: process.env.REACT_APP_WEBSOCKET_URL || 'wss://bananazone.app/feed/SOL_USD',
-  RECONNECT_INTERVAL: Number(process.env.REACT_APP_RECONNECT_INTERVAL) || 5000,
-  MAX_RECONNECT_ATTEMPTS: Number(process.env.REACT_APP_MAX_RECONNECT_ATTEMPTS) || 10,
+export const HTTP_CONFIG = {
+  URL: process.env.REACT_APP_HTTP_URL || 'https://bananazone.app/feed/SOL_USD',
+  POLL_INTERVAL: Number(process.env.REACT_APP_POLL_INTERVAL) || 1000,
+  TIMEOUT: Number(process.env.REACT_APP_TIMEOUT) || 5000,
   MAX_DATA_POINTS: Number(process.env.REACT_APP_MAX_DATA_POINTS) || 1000
 } as const;

@@ -10,15 +10,13 @@ interface ChartProps {
   width?: number;
   height?: number;
   className?: string;
-  isHistoryLoaded?: boolean;
 }
 
 export const Chart: React.FC<ChartProps> = ({
   priceData,
   width = 800,
   height = 400,
-  className = '',
-  isHistoryLoaded = false
+  className = ''
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,26 +87,27 @@ export const Chart: React.FC<ChartProps> = ({
     const totalBlocks = blockConfig.blocksPerRow;
     const blockWidth = canvas.width / totalBlocks;
     
-    // Position chart to end 3 blocks from the right
-    const endOffset = 3 * blockWidth;
-    const chartEndX = canvas.width - endOffset;
-    
-    // Calculate how many data points can fit
+    // Calculate how many data points can fit across full width
     const pointSpacing = 2; // pixels between points
-    const maxVisiblePoints = Math.floor(chartEndX / pointSpacing);
+    const maxVisiblePoints = Math.floor(canvas.width / pointSpacing);
     
-    // Determine which data to show
+    // Determine which data to show and positioning
     let dataToShow = priceData;
     let startOffset = 0;
     
-    if (isHistoryLoaded && priceData.length > maxVisiblePoints) {
-      // Show last maxVisiblePoints, shifting left as new data comes
-      dataToShow = priceData.slice(-maxVisiblePoints);
-      startOffset = 0;
-    } else if (!isHistoryLoaded) {
-      // During history loading, start from left
-      dataToShow = priceData.slice(0, maxVisiblePoints);
-      startOffset = 0;
+    // End position moves from -5 to -3 blocks as data comes in
+    const progress = Math.min(priceData.length / 100, 1); // 100 points to move from -5 to -3
+    const endOffset = 5 * blockWidth - (2 * blockWidth * progress); // Move end from -5 to -3 blocks
+    const chartEndX = canvas.width - endOffset;
+    
+    dataToShow = priceData;
+    
+    // Position the last point at the current end position
+    if (dataToShow.length > 0) {
+      const dataWidth = (dataToShow.length - 1) * pointSpacing;
+      startOffset = chartEndX - dataWidth;
+    } else {
+      startOffset = chartEndX;
     }
     
     // Draw price line
@@ -137,7 +136,7 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.arc(x, y, 4, 0, 2 * Math.PI);
       ctx.fill();
     }
-  }, [priceData, chartDimensions, isHistoryLoaded, blockConfig]);
+  }, [priceData, chartDimensions, blockConfig]);
 
   const handleBlockClick = useCallback((blockId: string) => {
     setBlocks(prev => 

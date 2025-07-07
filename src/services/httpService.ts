@@ -2,7 +2,6 @@ import { PriceData } from "../types";
 
 interface HTTPServiceConfig {
   baseUrl: string;
-  testDataEnabled: boolean;
 }
 
 export class SolPriceHTTP {
@@ -19,7 +18,6 @@ export class SolPriceHTTP {
     this.onDataCallback = onData;
     this.config = {
       baseUrl: "https://bananazone.app/feed/SOL_USD?from=1751876728",
-      testDataEnabled: false,
       ...config,
     };
   }

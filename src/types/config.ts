@@ -1,7 +1,7 @@
-export interface WebSocketConfig {
+export interface HTTPConfig {
   url: string;
-  reconnectInterval?: number;
-  maxReconnectAttempts?: number;
+  pollInterval?: number;
+  timeout?: number;
 }
 
 export interface ChartConfig {
@@ -33,7 +33,7 @@ export interface ChartConfig {
 }
 
 export interface SolPriceChartConfig {
-  websocket?: WebSocketConfig;
+  http?: HTTPConfig;
   chart?: ChartConfig;
   features?: {
     showPriceDisplay?: boolean;

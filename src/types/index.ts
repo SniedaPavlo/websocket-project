@@ -13,13 +13,13 @@ export interface ChartBlock {
   onClick?: () => void;
 }
 
-export interface WebSocketMessage {
+export interface HTTPResponse {
   data: [number, number][];
 }
 
 // Re-export config types
 export type {
-  WebSocketConfig,
+  HTTPConfig,
   ChartConfig,
   SolPriceChartConfig
 } from './config';

@@ -6,8 +6,8 @@ import { useResponsive } from './hooks/useResponsive';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export interface SolPriceChartProps {
-  /** WebSocket URL for price data */
-  websocketUrl?: string;
+  /** HTTP URL for price data */
+  httpUrl?: string;
   /** Chart width */
   width?: number;
   /** Chart height */
@@ -28,7 +28,7 @@ export interface SolPriceChartProps {
 }
 
 const SolPriceChart: React.FC<SolPriceChartProps> = ({
-  websocketUrl = 'wss://stream.binance.com:9443/ws/solusdt@ticker',
+  httpUrl = 'https://bananazone.app/feed/SOL_USD',
   width,
   height,
   showPriceDisplay = true,
