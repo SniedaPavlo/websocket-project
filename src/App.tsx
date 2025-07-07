@@ -1,6 +1,7 @@
 import React from "react";
 import { Chart } from "./components/Chart";
 import { PriceDisplay } from "./components/PriceDisplay";
+import { StatsPanel } from "./components/StatsPanel";
 import { useSolPrice } from "./hooks/useSolPrice";
 import { useResponsive } from "./hooks/useResponsive";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -24,7 +25,7 @@ const App: React.FC = () => {
               <p className="subtitle">Real-time Solana price monitoring</p>
             </div>
             <div className="price-section">
-              <PriceDisplay price={currentPrice} isConnected={isConnected} />
+              {/* <PriceDisplay price={currentPrice} isConnected={isConnected} /> */}
             </div>
           </div>
         </header>
@@ -42,29 +43,13 @@ const App: React.FC = () => {
                 </div>
               </ErrorBoundary>
             </div>
-
-            <div className="sidebar">
-              <div className="stats-panel">
-                <h3>Statistics</h3>
-                <div className="stat-item">
-                  <span className="stat-label">Data Points</span>
-                  <span className="stat-value">{priceData.length}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Status</span>
-                  <span className="stat-value">
-                    {isConnected ? "🟢 Live" : "🔴 Disconnected"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="controls-panel">
-                <h3>Controls</h3>
-                <button onClick={clearData} className="clear-button">
-                  Clear Data
-                </button>
-              </div>
-            </div>
+          </div>
+          <div className="stats-section">
+            <StatsPanel
+              priceData={priceData}
+              isConnected={isConnected}
+              onClearData={clearData}
+            />
           </div>
         </main>
       </div>
