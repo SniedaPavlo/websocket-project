@@ -10,22 +10,15 @@ export const useSolPrice = () => {
   const connectionCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleNewPrice = useCallback((data: PriceData) => {
-    console.log("📊 Received new price data:", data);
     setCurrentPrice(data.price);
     setPriceData((prev) => {
       const newData = [...prev, data];
-      console.log("📈 Total data points:", newData.length);
-      // Keep only last 1000 data points for performance
       return newData.slice(-1000);
     });
   }, []);
 
   useEffect(() => {
-    console.log("🔄 useEffect: Creating HTTP service...");
-    
-    // Cleanup any existing service
     if (httpServiceRef.current) {
-      console.log("🧹 Cleaning up existing HTTP service");
       httpServiceRef.current.disconnect();
       httpServiceRef.current = null;
     }
@@ -35,7 +28,6 @@ export const useSolPrice = () => {
       connectionCheckRef.current = null;
     }
 
-    // Create new service
     const httpService = new SolPriceHTTP(handleNewPrice);
     httpServiceRef.current = httpService;
 
@@ -48,7 +40,6 @@ export const useSolPrice = () => {
     }, 1000);
 
     return () => {
-      console.log("🧹 useEffect cleanup: Disconnecting HTTP service");
       if (connectionCheckRef.current) {
         clearInterval(connectionCheckRef.current);
         connectionCheckRef.current = null;
