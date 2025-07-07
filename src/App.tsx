@@ -8,7 +8,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import "./App.scss";
 
 const App: React.FC = () => {
-  console.log("✅ App component is rendering");
   const { priceData, currentPrice, isConnected, clearData } = useSolPrice();
   const { isMobile, windowSize } = useResponsive();
 

@@ -53,83 +53,47 @@ export const Chart: React.FC<ChartProps> = ({
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Draw chart
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    console.log('Drawing chart with data points:', priceData.length);
-    if (priceData.length === 0) return;
+    if (!canvas || !priceData.length) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
     canvas.width = chartDimensions.width;
     canvas.height = chartDimensions.height;
-
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Get price range
     const { min, max } = getMinMaxPrice(priceData);
-    const padding = (max - min) * 0.1; // 10% padding
+    const padding = (max - min) * 0.1;
     const minPrice = min - padding;
     const maxPrice = max + padding;
 
+    const blockWidth = canvas.width / blockConfig.blocksPerRow;
+    const pointSpacing = 2;
+    const progress = Math.min(priceData.length / 100, 1);
+    const endOffset = 5 * blockWidth - (2 * blockWidth * progress);
+    const chartEndX = canvas.width - endOffset;
+    const startOffset = priceData.length > 0 
+      ? chartEndX - (priceData.length - 1) * pointSpacing 
+      : chartEndX;
 
-    // Draw price line
     ctx.strokeStyle = '#13AE5C';
     ctx.lineWidth = 2;
     ctx.beginPath();
 
-    // Calculate chart positioning
-    const totalBlocks = blockConfig.blocksPerRow;
-    const blockWidth = canvas.width / totalBlocks;
-    
-    // Calculate how many data points can fit across full width
-    const pointSpacing = 2; // pixels between points
-    const maxVisiblePoints = Math.floor(canvas.width / pointSpacing);
-    
-    // Determine which data to show and positioning
-    let dataToShow = priceData;
-    let startOffset = 0;
-    
-    // End position moves from -5 to -3 blocks as data comes in
-    const progress = Math.min(priceData.length / 100, 1); // 100 points to move from -5 to -3
-    const endOffset = 5 * blockWidth - (2 * blockWidth * progress); // Move end from -5 to -3 blocks
-    const chartEndX = canvas.width - endOffset;
-    
-    dataToShow = priceData;
-    
-    // Position the last point at the current end position
-    if (dataToShow.length > 0) {
-      const dataWidth = (dataToShow.length - 1) * pointSpacing;
-      startOffset = chartEndX - dataWidth;
-    } else {
-      startOffset = chartEndX;
-    }
-    
-    // Draw price line
-    for (let i = 0; i < dataToShow.length; i++) {
-      const x = startOffset + (i * pointSpacing);
-      const y = normalizePrice(dataToShow[i].price, minPrice, maxPrice, canvas.height);
-
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
+    priceData.forEach((data, i) => {
+      const x = startOffset + i * pointSpacing;
+      const y = normalizePrice(data.price, minPrice, maxPrice, canvas.height);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
 
     ctx.stroke();
 
-    // Draw current price point
-    if (dataToShow.length > 0) {
-      const lastIndex = dataToShow.length - 1;
-      const currentPrice = dataToShow[lastIndex];
-      const x = startOffset + (lastIndex * pointSpacing);
-      const y = normalizePrice(currentPrice.price, minPrice, maxPrice, canvas.height);
+    if (priceData.length > 0) {
+      const lastData = priceData[priceData.length - 1];
+      const x = startOffset + (priceData.length - 1) * pointSpacing;
+      const y = normalizePrice(lastData.price, minPrice, maxPrice, canvas.height);
 
       ctx.fillStyle = '#13AE5C';
       ctx.beginPath();

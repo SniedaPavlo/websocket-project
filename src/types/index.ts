@@ -13,10 +13,6 @@ export interface ChartBlock {
   onClick?: () => void;
 }
 
-export interface HTTPResponse {
-  data: [number, number][];
-}
-
 // Re-export config types
 export type {
   HTTPConfig,

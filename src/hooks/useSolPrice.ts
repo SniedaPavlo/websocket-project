@@ -4,52 +4,34 @@ import { SolPriceHTTP } from "../services/httpService";
 
 export const useSolPrice = () => {
   const [priceData, setPriceData] = useState<PriceData[]>([]);
-  const [currentPrice, setCurrentPrice] = useState<number>(0);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const httpServiceRef = useRef<SolPriceHTTP | null>(null);
-  const connectionCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
+  const serviceRef = useRef<SolPriceHTTP | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleNewPrice = useCallback((data: PriceData) => {
+  const handlePrice = useCallback((data: PriceData) => {
     setCurrentPrice(data.price);
-    setPriceData((prev) => {
-      const newData = [...prev, data];
-      return newData.slice(-1000);
-    });
+    setPriceData(prev => [...prev, data].slice(-1000));
   }, []);
 
   useEffect(() => {
-    if (httpServiceRef.current) {
-      httpServiceRef.current.disconnect();
-      httpServiceRef.current = null;
-    }
+    const cleanup = () => {
+      serviceRef.current?.disconnect();
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
 
-    if (connectionCheckRef.current) {
-      clearInterval(connectionCheckRef.current);
-      connectionCheckRef.current = null;
-    }
+    cleanup();
 
-    const httpService = new SolPriceHTTP(handleNewPrice);
-    httpServiceRef.current = httpService;
+    const service = new SolPriceHTTP(handlePrice);
+    serviceRef.current = service;
+    service.connect();
 
-    httpService.connect();
-
-    connectionCheckRef.current = setInterval(() => {
-      if (httpServiceRef.current) {
-        setIsConnected(httpServiceRef.current.isConnected());
-      }
+    intervalRef.current = setInterval(() => {
+      setIsConnected(service.isConnected());
     }, 1000);
 
-    return () => {
-      if (connectionCheckRef.current) {
-        clearInterval(connectionCheckRef.current);
-        connectionCheckRef.current = null;
-      }
-      if (httpServiceRef.current) {
-        httpServiceRef.current.disconnect();
-        httpServiceRef.current = null;
-      }
-    };
-  }, []); // Removed handleNewPrice dependency to prevent re-creation
+    return cleanup;
+  }, [handlePrice]);
 
   return {
     priceData,
