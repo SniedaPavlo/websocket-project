@@ -33,7 +33,7 @@ export const Chart: React.FC<ChartProps> = ({
       blockConfig.blocksPerColumn
     );
     setBlocks(newBlocks);
-  }, [chartDimensions, blockConfig]);
+  }, [chartDimensions.width, chartDimensions.height, blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
   // Handle container resize
   useEffect(() => {

@@ -1,78 +1,215 @@
 import { PriceData } from "../types";
 
-export class SolPriceWebSocket {
-  private ws: WebSocket | null = null;
-  private url: string;
-  private onDataCallback: (data: PriceData) => void;
-  private reconnectInterval: number = 5000;
-  private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 10;
+interface StreamingResponse {
+  timestamp: number;
+  price: number;
+}
 
-  constructor(url: string, onData: (data: PriceData) => void) {
-    this.url = url;
+interface HTTPServiceConfig {
+  baseUrl: string;
+  pollInterval: number;
+  testDataEnabled: boolean;
+}
+
+export class SolPriceHTTP {
+  private readonly config: HTTPServiceConfig;
+  private readonly onDataCallback: (data: PriceData) => void;
+  private polling: boolean = false;
+  private abortController: AbortController | null = null;
+  private buffer: string = "";
+  private testIntervalId: NodeJS.Timeout | null = null;
+
+  constructor(onData: (data: PriceData) => void, config?: Partial<HTTPServiceConfig>) {
     this.onDataCallback = onData;
-    console.log("WebSocket URL:", url);
+    this.config = {
+      baseUrl: "https://bananazone.app/feed/SOL_USD?from=1751876728",
+      pollInterval: 1000,
+      testDataEnabled: true,
+      ...config
+    };
+    console.log("🚀 HTTP streaming service initialized");
   }
 
-  connect(): void {
-    console.log("🔌 Connecting to WebSocket...");
+  async connect(): Promise<void> {
+    console.log("🔌 Starting HTTP streaming connection...");
+    this.polling = true;
+
+    if (this.config.testDataEnabled) {
+      this.generateTestData();
+    }
 
     try {
-      this.ws = new WebSocket(this.url);
-
-      this.ws.onopen = () => {
-        console.log("✅ WebSocket connected");
-        this.reconnectAttempts = 0;
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log("📊 Received data:", data);
-
-          if (data.c) {
-            const price = parseFloat(data.c);
-            const timestamp = Math.floor(Date.now() / 1000);
-            console.log("✅ Parsed price:", price);
-            this.onDataCallback({ timestamp, price });
-          }
-        } catch (error) {
-          console.error("❌ Error parsing message:", error);
-        }
-      };
-
-      this.ws.onclose = () => {
-        console.log("❌ WebSocket disconnected");
-        this.handleReconnect();
-      };
-
-      this.ws.onerror = (error) => {
-        console.error("💥 WebSocket error:", error);
-      };
+      await this.startStreaming();
     } catch (error) {
       console.error("💥 Failed to connect:", error);
-      this.handleReconnect();
+      if (this.config.testDataEnabled) {
+        this.startTestDataGeneration();
+      }
     }
   }
 
-  private handleReconnect(): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
+  private generateTestData(): void {
+    const basePrice = 150; // Base SOL price
+    let currentPrice = basePrice;
+
+    // Generate 10 initial data points
+    for (let i = 0; i < 10; i++) {
+      const timestamp = Math.floor(Date.now() / 1000) - (10 - i);
+      currentPrice += (Math.random() - 0.5) * 2; // Random walk
+
+      console.log("🧪 Generated test data:", {
+        timestamp,
+        price: currentPrice,
+      });
+      this.onDataCallback({ timestamp, price: currentPrice });
+    }
+  }
+
+  private async startStreaming(): Promise<void> {
+    this.abortController = new AbortController();
+
+    try {
+      const response = await fetch(this.config.baseUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/stream+json",
+          "Cache-Control": "no-cache",
+        },
+        signal: this.abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log("✅ Connected to streaming API");
       console.log(
-        `🔄 Reconnecting in ${this.reconnectInterval}ms (attempt ${this.reconnectAttempts})`
+        "Response headers:",
+        Object.fromEntries(response.headers.entries())
       );
-      setTimeout(() => this.connect(), this.reconnectInterval);
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No reader available");
+      }
+
+      const decoder = new TextDecoder();
+      this.buffer = "";
+
+      while (this.polling) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          console.log("🏁 Stream ended");
+          break;
+        }
+
+        // Decode the chunk and add to buffer
+        const chunk = decoder.decode(value, { stream: true });
+        this.buffer += chunk;
+
+        // Process complete lines from buffer
+        this.processBuffer();
+      }
+
+      reader.releaseLock();
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("📡 Stream aborted");
+      } else {
+        console.error("💥 Streaming error:", error);
+        throw error;
+      }
+    }
+  }
+
+  private processBuffer(): void {
+    const lines = this.buffer.split("\n");
+    this.buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.trim()) {
+        this.parsePriceLine(line.trim());
+      }
+    }
+  }
+
+  private parsePriceLine(line: string): void {
+    try {
+      const parsed = JSON.parse(line) as unknown;
+      
+      if (!Array.isArray(parsed) || parsed.length !== 2) {
+        console.warn("⚠️ Invalid line format:", line);
+        return;
+      }
+
+      const [timestamp, price] = parsed as [number, number];
+      
+      if (typeof timestamp !== 'number' || typeof price !== 'number') {
+        console.warn("⚠️ Invalid data types:", { timestamp, price });
+        return;
+      }
+
+      const streamingData: StreamingResponse = {
+        timestamp,
+        price: price / 1e8 // Normalize price
+      };
+
+      console.log("📊 Received price data:", {
+        timestamp: streamingData.timestamp,
+        originalPrice: price,
+        normalizedPrice: streamingData.price,
+      });
+
+      this.onDataCallback(streamingData);
+    } catch (parseError) {
+      console.warn("⚠️ Failed to parse line:", line, parseError);
+    }
+  }
+
+  private startTestDataGeneration(): void {
+    console.log("🧪 Starting test data generation...");
+    let currentPrice = 150 + (Math.random() - 0.5) * 10;
+
+    this.testIntervalId = setInterval(() => {
+      if (!this.polling) {
+        this.stopTestDataGeneration();
+        return;
+      }
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      currentPrice += (Math.random() - 0.5) * 1;
+
+      const testData: PriceData = {
+        timestamp,
+        price: currentPrice,
+      };
+
+      console.log("🧪 Generated test data:", testData);
+      this.onDataCallback(testData);
+    }, this.config.pollInterval);
+  }
+
+  private stopTestDataGeneration(): void {
+    if (this.testIntervalId) {
+      clearInterval(this.testIntervalId);
+      this.testIntervalId = null;
     }
   }
 
   disconnect(): void {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    console.log("❌ Stopping HTTP streaming");
+    this.polling = false;
+
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
     }
+
+    this.stopTestDataGeneration();
   }
 
   isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this.polling;
   }
 }

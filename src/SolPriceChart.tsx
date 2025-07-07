@@ -41,7 +41,7 @@ const SolPriceChart: React.FC<SolPriceChartProps> = ({
     text: '#FFFFFF'
   }
 }) => {
-  const { priceData, currentPrice, isConnected, clearData } = useSolPrice(websocketUrl);
+  const { priceData, currentPrice, isConnected, clearData } = useSolPrice();
   const { isMobile, windowSize } = useResponsive();
 
   const chartHeight = height || (isMobile ? 300 : 500);

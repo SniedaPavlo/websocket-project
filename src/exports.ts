@@ -8,7 +8,7 @@ export { useSolPrice } from './hooks/useSolPrice';
 export { useResponsive } from './hooks/useResponsive';
 
 // Services
-export { SolPriceWebSocket } from './services/websocket';
+export { SolPriceHTTP } from './services/websocket';
 
 // Types
 export type { PriceData, ChartBlock } from './types';
