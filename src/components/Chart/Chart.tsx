@@ -47,6 +47,7 @@ export const Chart: React.FC<ChartProps> = ({
     const resizeObserver = new ResizeObserver(handleResize);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
+      handleResize();
     }
 
     return () => resizeObserver.disconnect();

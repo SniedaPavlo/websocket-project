@@ -38,16 +38,11 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // const defaultConfig: ResponsiveConfig = {
-  //   mobile: { blocksPerRow: 8, blocksPerColumn: 6 },
-  //   tablet: { blocksPerRow: 12, blocksPerColumn: 8 },
-  //   desktop: { blocksPerRow: 16, blocksPerColumn: 10 }
-  // };
-
+  //don't change values!
   const defaultConfig: ResponsiveConfig = {
-    mobile: { blocksPerRow: 8, blocksPerColumn: 6 },
-    tablet: { blocksPerRow: 8, blocksPerColumn: 2 },
-    desktop: { blocksPerRow: 5, blocksPerColumn: 5 },
+    mobile: { blocksPerRow: 7, blocksPerColumn: 4 },
+    tablet: { blocksPerRow: 7, blocksPerColumn: 4 },
+    desktop: { blocksPerRow: 7, blocksPerColumn: 4 },
   };
 
   const config = {

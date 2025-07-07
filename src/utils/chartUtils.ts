@@ -1,14 +1,16 @@
 import { PriceData, ChartBlock } from '../types';
 
 export const generateBlocks = (
-  width: number,
-  height: number,
+  containerWidth: number,
+  containerHeight: number,
   blocksPerRow: number,
   blocksPerColumn: number
 ): ChartBlock[] => {
   const blocks: ChartBlock[] = [];
-  const blockWidth = width / blocksPerRow;
-  const blockHeight = height / blocksPerColumn;
+  
+  // Calculate block size to fit perfectly within container
+  const blockWidth = containerWidth / blocksPerRow;
+  const blockHeight = containerHeight / blocksPerColumn;
 
   for (let row = 0; row < blocksPerColumn; row++) {
     for (let col = 0; col < blocksPerRow; col++) {
