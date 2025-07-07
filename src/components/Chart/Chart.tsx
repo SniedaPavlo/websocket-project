@@ -10,13 +10,15 @@ interface ChartProps {
   width?: number;
   height?: number;
   className?: string;
+  isHistoryLoaded?: boolean;
 }
 
 export const Chart: React.FC<ChartProps> = ({
   priceData,
   width = 800,
   height = 400,
-  className = ''
+  className = '',
+  isHistoryLoaded = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -83,11 +85,36 @@ export const Chart: React.FC<ChartProps> = ({
     ctx.lineWidth = 2;
     ctx.beginPath();
 
-    const maxPoints = Math.floor(canvas.width / 2);
+    // Calculate chart positioning
+    const totalBlocks = blockConfig.blocksPerRow;
+    const blockWidth = canvas.width / totalBlocks;
     
-    for (let i = 0; i < priceData.length; i++) {
-      const x = (i / maxPoints) * canvas.width;
-      const y = normalizePrice(priceData[i].price, minPrice, maxPrice, canvas.height);
+    // Position chart to end 3 blocks from the right
+    const endOffset = 3 * blockWidth;
+    const chartEndX = canvas.width - endOffset;
+    
+    // Calculate how many data points can fit
+    const pointSpacing = 2; // pixels between points
+    const maxVisiblePoints = Math.floor(chartEndX / pointSpacing);
+    
+    // Determine which data to show
+    let dataToShow = priceData;
+    let startOffset = 0;
+    
+    if (isHistoryLoaded && priceData.length > maxVisiblePoints) {
+      // Show last maxVisiblePoints, shifting left as new data comes
+      dataToShow = priceData.slice(-maxVisiblePoints);
+      startOffset = 0;
+    } else if (!isHistoryLoaded) {
+      // During history loading, start from left
+      dataToShow = priceData.slice(0, maxVisiblePoints);
+      startOffset = 0;
+    }
+    
+    // Draw price line
+    for (let i = 0; i < dataToShow.length; i++) {
+      const x = startOffset + (i * pointSpacing);
+      const y = normalizePrice(dataToShow[i].price, minPrice, maxPrice, canvas.height);
 
       if (i === 0) {
         ctx.moveTo(x, y);
@@ -99,10 +126,10 @@ export const Chart: React.FC<ChartProps> = ({
     ctx.stroke();
 
     // Draw current price point
-    if (priceData.length > 0) {
-      const currentIndex = priceData.length - 1;
-      const currentPrice = priceData[currentIndex];
-      const x = (currentIndex / maxPoints) * canvas.width;
+    if (dataToShow.length > 0) {
+      const lastIndex = dataToShow.length - 1;
+      const currentPrice = dataToShow[lastIndex];
+      const x = startOffset + (lastIndex * pointSpacing);
       const y = normalizePrice(currentPrice.price, minPrice, maxPrice, canvas.height);
 
       ctx.fillStyle = '#13AE5C';
@@ -110,7 +137,7 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.arc(x, y, 4, 0, 2 * Math.PI);
       ctx.fill();
     }
-  }, [priceData, chartDimensions]);
+  }, [priceData, chartDimensions, isHistoryLoaded, blockConfig]);
 
   const handleBlockClick = useCallback((blockId: string) => {
     setBlocks(prev => 

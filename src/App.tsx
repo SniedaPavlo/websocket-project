@@ -9,7 +9,7 @@ import "./App.scss";
 
 const App: React.FC = () => {
   console.log("✅ App component is rendering");
-  const { priceData, currentPrice, isConnected, clearData } = useSolPrice();
+  const { priceData, currentPrice, isConnected, isHistoryLoaded, clearData } = useSolPrice();
   const { isMobile, windowSize } = useResponsive();
 
   const chartHeight = isMobile ? 300 : 500;
@@ -39,6 +39,7 @@ const App: React.FC = () => {
                     priceData={priceData}
                     width={chartWidth}
                     height={chartHeight}
+                    isHistoryLoaded={isHistoryLoaded}
                   />
                 </div>
               </ErrorBoundary>

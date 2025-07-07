@@ -6,16 +6,27 @@ export const useSolPrice = () => {
   const [priceData, setPriceData] = useState<PriceData[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState<boolean>(false);
   const httpServiceRef = useRef<SolPriceHTTP | null>(null);
   const connectionCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const connectionStartTime = useRef<number>(0);
 
   const handleNewPrice = useCallback((data: PriceData) => {
     setCurrentPrice(data.price);
     setPriceData((prev) => {
       const newData = [...prev, data];
+      
+      // Check if we're still in history loading phase (first 4 seconds)
+      const timeSinceStart = Date.now() - connectionStartTime.current;
+      if (timeSinceStart < 4000 && !isHistoryLoaded) {
+        return newData.slice(-1000);
+      } else if (!isHistoryLoaded) {
+        setIsHistoryLoaded(true);
+      }
+      
       return newData.slice(-1000);
     });
-  }, []);
+  }, [isHistoryLoaded]);
 
   useEffect(() => {
     if (httpServiceRef.current) {
@@ -31,6 +42,7 @@ export const useSolPrice = () => {
     const httpService = new SolPriceHTTP(handleNewPrice);
     httpServiceRef.current = httpService;
 
+    connectionStartTime.current = Date.now();
     httpService.connect();
 
     connectionCheckRef.current = setInterval(() => {
@@ -55,6 +67,7 @@ export const useSolPrice = () => {
     priceData,
     currentPrice,
     isConnected,
+    isHistoryLoaded,
     clearData: () => setPriceData([]),
   };
 };
