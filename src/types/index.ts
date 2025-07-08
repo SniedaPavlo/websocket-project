@@ -11,6 +11,8 @@ export interface ChartBlock {
   height: number;
   isActive: boolean;
   onClick?: () => void;
+  row?: number;
+  col?: number;
 }
 
 // Re-export config types

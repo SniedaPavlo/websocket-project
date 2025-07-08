@@ -1,10 +1,11 @@
-@use '../../styles/variables.scss' as *;
+@use "../../styles/variables.scss" as *;
 
 .chart {
   position: relative;
   width: 100%;
-  height: 100%;
-  background-color: #1A1A1A;
+  // Убираем фиксированную высоту
+  min-height: 400px; // Минимальная высота для пустого состояния
+  background-color: #1a1a1a;
   border-radius: $border-radius-md;
   overflow: hidden;
 }
@@ -12,7 +13,7 @@
 .chartWrapper {
   display: flex;
   width: 100%;
-  height: 100%;
+  min-height: inherit;
 }
 
 .priceLabels {
@@ -21,7 +22,8 @@
   justify-content: space-between;
   width: 60px;
   padding: 10px 5px;
-  background-color: #1A1A1A;
+  background-color: #1a1a1a;
+  min-height: inherit;
 }
 
 .priceLabel {
@@ -37,13 +39,16 @@
   display: flex;
   flex-direction: column;
   width: calc(100% - 4px);
-  height: calc(100% - 4px);
+  min-height: calc(100% - 4px);
   margin: 2px;
 }
 
 .blockGrid {
   flex: 1;
   z-index: 1;
+  position: relative;
+  // Высота будет задаваться динамически через JavaScript
+  min-height: 1000px; // Минимальная высота
 }
 
 .canvas {
@@ -59,5 +64,10 @@
 @media (max-width: $mobile) {
   .chart {
     border-radius: $border-radius-sm;
+    min-height: 300px;
+  }
+
+  .blockGrid {
+    min-height: 280px;
   }
 }

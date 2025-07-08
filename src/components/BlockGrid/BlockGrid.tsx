@@ -61,11 +61,14 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     }
 
     const gap = 2;
+    const aspectRatio = 1.3; // Высота в 1.3 раза больше ширины
+
+    // Рассчитываем ширину блока исходя из ширины контейнера
     const blockWidth =
       (containerDimensions.width - (blocksPerRow + 1) * gap) / blocksPerRow;
-    const blockHeight =
-      (containerDimensions.height - (blocksPerColumn + 1) * gap) /
-      blocksPerColumn;
+
+    // Высота блока больше ширины
+    const blockHeight = blockWidth * aspectRatio;
 
     const newScaledBlocks = blocks.map((block, index) => {
       const col = index % blocksPerRow;
