@@ -5,8 +5,15 @@
   position: relative;
   width: 100%;
   height: 100%;
-  // Убираем margin и overflow для более точного позиционирования
   overflow: hidden;
+
+  // Обеспечиваем, что контейнер полностью заполняет доступное пространство
+  min-width: 0;
+  min-height: 0;
+
+  // Улучшаем производительность рендеринга
+  contain: layout style paint;
+  will-change: contents;
 }
 
 .block {
@@ -14,42 +21,65 @@
   background-color: $block-color;
   border: 1px solid $border-color;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
-  // Минимальные размеры для кликабельности
-  min-width: 8px;
-  min-height: 8px;
+  // Гарантируем минимальные размеры для кликабельности
+  min-width: 4px;
+  min-height: 4px;
 
-  // Для лучшей производительности
-  will-change: transform;
+  // Оптимизация производительности
+  will-change: transform, background-color, border-color;
+  backface-visibility: hidden;
+  transform: translateZ(0); // Создаем новый слой композитинга
+
+  // Улучшаем качество рендеринга мелких элементов
+  image-rendering: crisp-edges;
+
+  // Обеспечиваем корректное отображение границ
+  box-sizing: border-box;
 
   &:hover {
     background-color: color.adjust($block-color, $lightness: 5%);
     border-color: $accent-color;
-    transform: scale(1.05);
+    transform: translateZ(0) scale(1.05);
     z-index: 10;
   }
 
   &.active {
     background-color: $accent-color;
     border-color: $accent-color;
-    transform: scale(1.1);
+    transform: translateZ(0) scale(1.1);
     z-index: 20;
+  }
+}
+
+// Адаптивные стили для разных размеров экрана
+@media (max-width: $tablet) {
+  .block {
+    border-width: 0.75px;
+    transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateZ(0) scale(1.08);
+    }
+
+    &.active {
+      transform: translateZ(0) scale(1.12);
+    }
   }
 }
 
 @media (max-width: $mobile) {
   .block {
     border-width: 0.5px;
-    min-width: 6px;
-    min-height: 6px;
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 
     &:hover {
-      transform: scale(1.1);
+      transform: translateZ(0) scale(1.1);
     }
 
     &.active {
-      transform: scale(1.15);
+      transform: translateZ(0) scale(1.15);
     }
   }
 }
@@ -57,16 +87,35 @@
 // Для очень маленьких экранов
 @media (max-width: 320px) {
   .block {
-    min-width: 4px;
-    min-height: 4px;
     border-width: 0.25px;
+    transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
 
     &:hover {
-      transform: scale(1.2);
+      transform: translateZ(0) scale(1.15);
     }
 
     &.active {
-      transform: scale(1.25);
+      transform: translateZ(0) scale(1.2);
+    }
+  }
+}
+
+// Для высоких разрешений (retina)
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .block {
+    // Более четкие границы на retina дисплеях
+    border-width: 0.5px;
+  }
+}
+
+// Оптимизация для устройств с ограниченными ресурсами
+@media (prefers-reduced-motion: reduce) {
+  .block {
+    transition: none;
+
+    &:hover,
+    &.active {
+      transform: translateZ(0);
     }
   }
 }
