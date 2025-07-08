@@ -15,6 +15,12 @@ export interface Competition {
   endTime: number;
 }
 
+export interface PoolsRequest {
+  competitionKey: string;
+  poolsPerPage?: number;
+  secondsPerPool?: number;
+}
+
 export interface ApiConfig {
   baseUrl?: string;
   apiKey?: string;
@@ -37,6 +43,7 @@ export class HttpClient {
 
   constructor(config: ApiConfig = {}) {
     this.baseUrl = config.baseUrl || "https://bananazone.app/api";
+    //for key headers "d4c3b4f6e2a8c9d0f1e2b3c4d5a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b"
     this.apiKey =
       config.apiKey ||
       "d4c3b4f6e2a8c9d0f1e2b3c4d5a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b";
@@ -100,18 +107,6 @@ export class HttpClient {
   ): Promise<T> {
     return this.request<T>(endpoint, "POST", data, options);
   }
-
-  async put<T>(
-    endpoint: string,
-    data?: any,
-    options?: RequestOptions
-  ): Promise<T> {
-    return this.request<T>(endpoint, "PUT", data, options);
-  }
-
-  async delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, "DELETE", undefined, options);
-  }
 }
 
 // =============================================================================
@@ -119,10 +114,29 @@ export class HttpClient {
 // =============================================================================
 
 export class CompetitionService {
+  private cache: Competition[] | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_DURATION = 30000; // 30 seconds
+
   constructor(private http: HttpClient) {}
 
-  async getAll(): Promise<Competition[]> {
-    return this.http.get<Competition[]>("/competition");
+  async getAll(forceRefresh: boolean = false): Promise<Competition[]> {
+    const now = Date.now();
+
+    // Check cache
+    if (
+      !forceRefresh &&
+      this.cache &&
+      now - this.cacheTimestamp < this.CACHE_DURATION
+    ) {
+      return this.cache;
+    }
+
+    // Make request and cache result
+    this.cache = await this.http.get<Competition[]>("/competition");
+    this.cacheTimestamp = now;
+
+    return this.cache;
   }
 
   async getByKey(key: string): Promise<Competition | null> {
@@ -135,25 +149,26 @@ export class CompetitionService {
     const now = Math.floor(Date.now() / 1000);
     return competitions.filter((c) => c.endTime > now);
   }
+
+  // Force clear cache
+  clearCache(): void {
+    this.cache = null;
+    this.cacheTimestamp = 0;
+  }
 }
 
-// Ready stubs for future services
 export class PoolService {
   constructor(private http: HttpClient) {}
 
-  // TODO: Implement when needed
-  // async getActive(competitionKey: string): Promise<PoolsResponse> {
-  //   return this.http.post('/games/pools/active/new', { competitionKey });
-  // }
-}
+  async getActivePools(request: PoolsRequest): Promise<any> {
+    const payload = {
+      competitionKey: request.competitionKey,
+      poolsPerPage: request.poolsPerPage || 10,
+      secondsPerPool: request.secondsPerPool || 30,
+    };
 
-export class BetService {
-  constructor(private http: HttpClient) {}
-
-  // TODO: Implement when needed
-  // async create(poolId: string, outcomeId: string, amount: number, jwt: string): Promise<any> {
-  //   return this.http.post('/create-bet', { poolId, outcomeId, amount }, { jwt });
-  // }
+    return this.http.post("/games/pools/active/new", payload);
+  }
 }
 
 // =============================================================================
@@ -163,14 +178,12 @@ export class BetService {
 export class BananaZoneClient {
   public readonly competitions: CompetitionService;
   public readonly pools: PoolService;
-  public readonly bets: BetService;
 
   constructor(config: ApiConfig = {}) {
     const http = new HttpClient(config);
 
     this.competitions = new CompetitionService(http);
     this.pools = new PoolService(http);
-    this.bets = new BetService(http);
   }
 
   async ping(): Promise<boolean> {
@@ -191,14 +204,27 @@ export class BananaZoneClient {
 // Basic usage
 const client = new BananaZoneClient();
 
-// Get all competitions
+// Get all competitions (will use cache if available)
 const competitions = await client.competitions.getAll();
 
-// Get active competitions
+// Get active competitions (uses cached data)
 const active = await client.competitions.getActive();
 
-// Find a specific competition
+// Find a specific competition (uses cached data)
 const solCompetition = await client.competitions.getByKey('5131FyiapyPHMwoLrzxNtpg13nNDvYprK5GJ2eQreaq2');
+
+// Force refresh cache
+const freshCompetitions = await client.competitions.getAll(true);
+
+// Clear cache manually
+client.competitions.clearCache();
+
+// Get active pools for a competition
+const pools = await client.pools.getActivePools({
+  competitionKey: '5131FyiapyPHMwoLrzxNtpg13nNDvYprK5GJ2eQreaq2',
+  poolsPerPage: 10,
+  secondsPerPool: 30
+});
 
 // Check connection
 const isOnline = await client.ping();
