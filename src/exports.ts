@@ -4,11 +4,10 @@ export { PriceDisplay } from "./components/PriceDisplay";
 export { BlockGrid } from "./components/BlockGrid";
 
 // Hooks
-export { useSolPrice } from "./hooks/useSolPrice";
 export { useResponsive } from "./hooks/useResponsive";
 
 // Services
-export { BananaZoneAPI } from "./services/httpService";
+export { BananaZoneClient } from "./services/httpService";
 
 // Types
 export type { PriceData, ChartBlock } from "./types";
@@ -18,6 +17,7 @@ export {
   generateBlocks,
   normalizePrice,
   getMinMaxPrice,
+  formatPrice,
 } from "./utils/chartUtils";
 export { COLORS, BREAKPOINTS, HTTP_CONFIG } from "./utils/constants";
 
