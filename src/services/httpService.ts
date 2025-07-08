@@ -43,7 +43,6 @@ export class HttpClient {
 
   constructor(config: ApiConfig = {}) {
     this.baseUrl = config.baseUrl || "https://bananazone.app/api";
-    //for key headers "d4c3b4f6e2a8c9d0f1e2b3c4d5a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b"
     this.apiKey =
       config.apiKey ||
       "d4c3b4f6e2a8c9d0f1e2b3c4d5a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b";
@@ -139,17 +138,6 @@ export class CompetitionService {
     return this.cache;
   }
 
-  async getByKey(key: string): Promise<Competition | null> {
-    const competitions = await this.getAll();
-    return competitions.find((c) => c.competitionKey === key) || null;
-  }
-
-  async getActive(): Promise<Competition[]> {
-    const competitions = await this.getAll();
-    const now = Math.floor(Date.now() / 1000);
-    return competitions.filter((c) => c.endTime > now);
-  }
-
   // Force clear cache
   clearCache(): void {
     this.cache = null;
@@ -206,12 +194,6 @@ const client = new BananaZoneClient();
 
 // Get all competitions (will use cache if available)
 const competitions = await client.competitions.getAll();
-
-// Get active competitions (uses cached data)
-const active = await client.competitions.getActive();
-
-// Find a specific competition (uses cached data)
-const solCompetition = await client.competitions.getByKey('5131FyiapyPHMwoLrzxNtpg13nNDvYprK5GJ2eQreaq2');
 
 // Force refresh cache
 const freshCompetitions = await client.competitions.getAll(true);
