@@ -80,7 +80,7 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     }
 
     const gap = Math.max(1, Math.min(4, containerDimensions.width / 200)); // Adaptive gap
-    const aspectRatio = 1.3; // Height is 1.3 times the width
+    const aspectRatio = 1; // Height is 1 times the width (square)
 
     // Calculate block sizes so they fit in the container
     const availableWidth = containerDimensions.width - gap * (blocksPerRow + 1);

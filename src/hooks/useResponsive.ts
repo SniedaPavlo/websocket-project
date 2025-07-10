@@ -42,7 +42,7 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
   const defaultConfig: ResponsiveConfig = {
     mobile: { blocksPerRow: 7, blocksPerColumn: 4 },
     tablet: { blocksPerRow: 7, blocksPerColumn: 4 },
-    desktop: { blocksPerRow: 7, blocksPerColumn: 4 },
+    desktop: { blocksPerRow: 10, blocksPerColumn: 4 },
   };
 
   const config = {
