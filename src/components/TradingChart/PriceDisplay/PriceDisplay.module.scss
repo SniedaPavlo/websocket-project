@@ -1,4 +1,4 @@
-@use '../../styles/variables.scss' as *;
+@use "../../../styles/variables.scss" as *;
 
 .priceDisplay {
   display: flex;
@@ -15,7 +15,7 @@
   font-size: 2rem;
   font-weight: bold;
   color: $text-color;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 }
 
 .status {
@@ -30,21 +30,27 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  
+
   .connected & {
     background-color: $accent-color;
     animation: pulse 2s infinite;
   }
-  
+
   .disconnected & {
     background-color: #ff4444;
   }
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @media (max-width: $mobile) {

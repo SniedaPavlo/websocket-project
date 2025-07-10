@@ -24,3 +24,6 @@ yarn-error.log*
 
 .tasks
 /tasks
+
+.README_Ru.md
+/README_Ru.md

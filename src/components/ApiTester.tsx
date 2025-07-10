@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { BananaZoneClient } from "../services/httpService";
+import { BananaZoneClient } from "../libs/api";
 
 export const ApiTester: React.FC = () => {
   const hasRunRef = useRef(false);

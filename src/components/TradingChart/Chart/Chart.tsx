@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { PriceData, ChartBlock } from "../../types";
+import { PriceData, ChartBlock } from "../../../types";
 import { BlockGrid } from "../BlockGrid";
 import {
   generateBlocksGrid,
   normalizePrice,
   getMinMaxPrice,
-} from "../../utils/chartUtils";
-import { useResponsive } from "../../hooks/useResponsive";
+} from "../../../libs/utils/chartUtils";
+import { useResponsive } from "../../../hooks/useResponsive";
 import styles from "./Chart.module.scss";
 
 interface ChartProps {

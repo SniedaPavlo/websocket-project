@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChartBlock } from "../../types";
+import { ChartBlock } from "../../../types";
 import styles from "./BlockGrid.module.scss";
 
 interface BlockGridProps {

@@ -1,4 +1,4 @@
-import { ChartBlock } from "../types/index";
+import { ChartBlock } from "../../types/index";
 
 export const generateBlocks = (
   containerWidth: number,

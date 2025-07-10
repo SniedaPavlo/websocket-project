@@ -1,6 +1,6 @@
 import React from "react";
-import { Chart } from "./components/Chart";
-import { PriceDisplay } from "./components/PriceDisplay";
+import { Chart } from "./components/TradingChart/Chart";
+import { PriceDisplay } from "./components/TradingChart/PriceDisplay";
 import { StatsPanel } from "./components/StatsPanel";
 import { ApiTester } from "./components/ApiTester";
 import { useResponsive } from "./hooks/useResponsive";
@@ -22,7 +22,7 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <ApiTester />
-      
+
       <div className="app-container">
         <header className="header">
           <div className="header-content">
