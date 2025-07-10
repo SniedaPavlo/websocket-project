@@ -2,8 +2,12 @@
 @use "sass:color";
 
 .block {
-  position: absolute;
+  // CSS custom properties for text scaling
+  --text-scale: 1;
+  --base-main-size: 2rem; /* 1.8 * 1.1 */
+  --base-sub-size: 0.9rem; /* 0.7 * 1.1 */
   background-color: $block-color;
+  border-radius: $border-radius-sm;
   border: 1px solid $border-color;
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -67,9 +71,8 @@
 .mainText {
   font-family: "Instrument Serif", serif;
   font-weight: 400;
-  font-size: clamp(12px, 8.31vw, 28.27px);
-  line-height: clamp(18px, 12.35vw, 41.99px);
-  letter-spacing: 0%;
+  font-size: calc(var(--base-main-size) * var(--text-scale));
+
   color: $text-color;
   margin: 0;
   white-space: nowrap;
@@ -80,57 +83,19 @@
 .subText {
   font-family: "Instrument Serif", serif;
   font-weight: 400;
-  font-size: clamp(6px, 3.33vw, 11.31px);
-  line-height: clamp(10px, 5.88vw, 20px);
-  letter-spacing: 0%;
-  color: $text-color;
+  font-size: calc(var(--base-sub-size) * var(--text-scale));
+  line-height: 1; // Keep proportion 20/11.31
+  color: $color-sub-title;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-// Responsive font sizes
-@media (max-width: $tablet) {
-  .mainText {
-    font-size: clamp(10px, 7vw, 24px);
-    line-height: clamp(15px, 10.5vw, 32px);
-  }
-
-  .subText {
-    font-size: clamp(5px, 2.8vw, 10px);
-    line-height: clamp(8px, 4.5vw, 16px);
-  }
-}
-
-@media (max-width: $mobile) {
-  .mainText {
-    font-size: clamp(8px, 6vw, 20px);
-    line-height: clamp(12px, 8.5vw, 28px);
-  }
-
-  .subText {
-    font-size: clamp(4px, 2.5vw, 9px);
-    line-height: clamp(6px, 4vw, 14px);
-  }
-}
-
-// For very small screens
-@media (max-width: 320px) {
-  .mainText {
-    font-size: clamp(6px, 5vw, 16px);
-    line-height: clamp(10px, 7.5vw, 24px);
-  }
-
-  .subText {
-    font-size: clamp(3px, 2vw, 8px);
-    line-height: clamp(5px, 3.5vw, 12px);
-  }
-}
-
 // Responsive styles for different screen sizes
 @media (max-width: $tablet) {
   .block {
+    --text-scale: 0.85; // Decrease by 15%
     border-width: 0.75px;
     transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -146,6 +111,7 @@
 
 @media (max-width: $mobile) {
   .block {
+    --text-scale: 0.7; // Decrease by 30%
     border-width: 0.5px;
     transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -162,6 +128,7 @@
 // For very small screens
 @media (max-width: 320px) {
   .block {
+    --text-scale: 0.55; // Decrease by 45%
     border-width: 0.25px;
     transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
 

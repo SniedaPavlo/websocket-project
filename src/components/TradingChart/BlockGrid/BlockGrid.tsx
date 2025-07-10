@@ -27,7 +27,7 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     width: 0,
     height: 0,
   });
-  const [scaledBlocks, setScaledBlocks] = useState<ChartBlock[]>([]);
+  const [blockSize, setBlockSize] = useState(0);
 
   const handleBlockClick = useCallback(
     (blockId: string) => {
@@ -41,8 +41,6 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     const updateDimensions = () => {
       if (containerRef.current) {
         const { clientWidth, clientHeight } = containerRef.current;
-
-        // Use passed dimensions if available, otherwise measure container
         const width = containerWidth || clientWidth;
         const height = containerHeight || clientHeight;
 
@@ -52,7 +50,6 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
       }
     };
 
-    // If dimensions are passed from outside, use them
     if (containerWidth && containerHeight) {
       setContainerDimensions({
         width: containerWidth,
@@ -64,78 +61,38 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
         resizeObserver.observe(containerRef.current);
         updateDimensions();
       }
-
       return () => resizeObserver.disconnect();
     }
   }, [containerWidth, containerHeight]);
 
-  // Scale blocks to fit container size
+  // Calculate block size based on container dimensions
   useEffect(() => {
-    if (
-      !containerDimensions.width ||
-      !containerDimensions.height ||
-      !blocks.length
-    ) {
-      setScaledBlocks(blocks);
+    if (!containerDimensions.width || !containerDimensions.height) {
       return;
     }
 
-    const gap = Math.max(1, Math.min(4, containerDimensions.width / 200)); // Adaptive gap
-    const aspectRatio = 1; // Height is 1 times the width (square)
+    const gap = Math.max(1, Math.min(4, containerDimensions.width / 200));
 
-    // Calculate block sizes so they fit in the container
-    const availableWidth = containerDimensions.width - gap * (blocksPerRow + 1);
+    // Calculate available space for blocks
+    const availableWidth = containerDimensions.width - gap * (blocksPerRow - 1);
     const availableHeight =
-      containerDimensions.height - gap * (blocksPerColumn + 1);
+      containerDimensions.height - gap * (blocksPerColumn - 1);
 
     // Calculate max block size by width and height
     const maxBlockWidth = availableWidth / blocksPerRow;
     const maxBlockHeight = availableHeight / blocksPerColumn;
 
-    // Choose the smallest size so blocks fit in the container
-    let blockWidth = maxBlockWidth;
-    let blockHeight = blockWidth * aspectRatio;
+    // Choose the smallest size to ensure blocks fit
+    const calculatedSize = Math.min(maxBlockWidth, maxBlockHeight);
 
-    // If blocks don't fit by height, recalculate based on height
-    if (blockHeight > maxBlockHeight) {
-      blockHeight = maxBlockHeight;
-      blockWidth = blockHeight / aspectRatio;
-    }
-
-    // Minimum size for clickability
+    // Apply minimum size constraint
     const minSize = Math.max(4, Math.min(8, containerDimensions.width / 100));
-    blockWidth = Math.max(minSize, blockWidth);
-    blockHeight = Math.max(minSize * aspectRatio, blockHeight);
+    const finalSize = Math.max(minSize, calculatedSize);
 
-    // Center the grid if there is free space
-    const totalGridWidth = blocksPerRow * blockWidth + (blocksPerRow - 1) * gap;
-    const totalGridHeight =
-      blocksPerColumn * blockHeight + (blocksPerColumn - 1) * gap;
+    setBlockSize(finalSize);
+  }, [containerDimensions, blocksPerRow, blocksPerColumn]);
 
-    const offsetX = Math.max(
-      0,
-      (containerDimensions.width - totalGridWidth) / 2
-    );
-    const offsetY = Math.max(
-      0,
-      (containerDimensions.height - totalGridHeight) / 2
-    );
-
-    const newScaledBlocks = blocks.map((block, index) => {
-      const col = index % blocksPerRow;
-      const row = Math.floor(index / blocksPerRow);
-
-      return {
-        ...block,
-        x: offsetX + col * (blockWidth + gap),
-        y: offsetY + row * (blockHeight + gap),
-        width: blockWidth,
-        height: blockHeight,
-      };
-    });
-
-    setScaledBlocks(newScaledBlocks);
-  }, [blocks, containerDimensions, blocksPerRow, blocksPerColumn]);
+  const gridGap = Math.max(1, Math.min(4, containerDimensions.width / 200));
 
   return (
     <div
@@ -144,10 +101,18 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
       style={{
         width: containerWidth ? `${containerWidth}px` : "100%",
         height: containerHeight ? `${containerHeight}px` : "100%",
+        gridTemplateColumns: `repeat(${blocksPerRow}, ${blockSize}px)`,
+        gridTemplateRows: `repeat(${blocksPerColumn}, ${blockSize}px)`,
+        gap: `${gridGap}px`,
       }}
     >
-      {scaledBlocks.map((block) => (
-        <Block key={block.id} block={block} onClick={handleBlockClick} />
+      {blocks.map((block) => (
+        <Block
+          key={block.id}
+          block={block}
+          onClick={handleBlockClick}
+          size={blockSize}
+        />
       ))}
     </div>
   );
