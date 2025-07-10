@@ -13,6 +13,10 @@ export interface ChartBlock {
   onClick?: () => void;
   row?: number;
   col?: number;
+  bananas?: number;
+  potValue?: string;
+  mainText?: string;
+  subText?: string;
 }
 
 // Re-export config types

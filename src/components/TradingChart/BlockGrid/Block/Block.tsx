@@ -26,22 +26,26 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
       <div className={styles.content}>
         <div className={styles.headerWrapper}>
           <span className={styles.topLeft}>
-            {/* bananas */}
-            <div className={styles.bananas}>
-              <BananaIcon />
-              <BananaIcon />
-              <BananaIcon />
-              <BananaIcon />
-              <BananaIcon />
-              <BananaIcon />
-            </div>
+            {block.bananas && block.bananas > 0 && (
+              <div className={styles.bananas}>
+                {Array.from({ length: block.bananas }, (_, index) => (
+                  <BananaIcon key={index} />
+                ))}
+              </div>
+            )}
           </span>
-          <span className={styles.topRight}>POT: $25</span>
+          {block.potValue && (
+            <span className={styles.topRight}>{block.potValue}</span>
+          )}
         </div>
 
         <div className={styles.textWrapper}>
-          <div className={styles.mainText}>1.3x</div>
-          <div className={styles.subText}>$4,110</div>
+          {block.mainText && (
+            <div className={styles.mainText}>{block.mainText}</div>
+          )}
+          {block.subText && (
+            <div className={styles.subText}>{block.subText}</div>
+          )}
         </div>
       </div>
     </div>

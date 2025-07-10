@@ -62,6 +62,10 @@ export const generateBlocksGrid = (
         isActive: false,
         row,
         col,
+        bananas: Math.floor(Math.random() * 6) + 1, // 1-6 бананов
+        potValue: `POT: $${Math.floor(Math.random() * 100) + 10}`,
+        mainText: `${(Math.random() * 3 + 0.5).toFixed(1)}x`,
+        subText: `$${Math.floor(Math.random() * 10000) + 1000}`,
       });
     }
   }
