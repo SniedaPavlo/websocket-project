@@ -7,6 +7,8 @@ import { useResponsive } from "./hooks/useResponsive";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./App.scss";
 
+import { Banana } from "./components/Icons/banana";
+
 const App: React.FC = () => {
   // Mock data - no actual price requests
   const priceData: any[] = [];
@@ -22,7 +24,6 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <ApiTester />
-
       <div className="app-container">
         <header className="header">
           <div className="header-content">

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ChartBlock } from "../../../types";
+import { Block } from "./Block/Block";
 import styles from "./BlockGrid.module.scss";
 
 interface BlockGridProps {
@@ -146,17 +147,7 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
       }}
     >
       {scaledBlocks.map((block) => (
-        <div
-          key={block.id}
-          className={`${styles.block} ${block.isActive ? styles.active : ""}`}
-          style={{
-            left: `${block.x}px`,
-            top: `${block.y}px`,
-            width: `${block.width}px`,
-            height: `${block.height}px`,
-          }}
-          onClick={() => handleBlockClick(block.id)}
-        />
+        <Block key={block.id} block={block} onClick={handleBlockClick} />
       ))}
     </div>
   );

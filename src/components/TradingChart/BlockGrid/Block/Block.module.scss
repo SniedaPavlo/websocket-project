@@ -1,0 +1,106 @@
+@use "../../../../styles/variables.scss" as *;
+@use "sass:color";
+
+.block {
+  position: absolute;
+  background-color: $block-color;
+  border: 1px solid $border-color;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Guarantee minimum size for clickability
+  min-width: 4px;
+  min-height: 4px;
+
+  // Performance optimization
+  will-change: transform, background-color, border-color;
+  backface-visibility: hidden;
+  transform: translateZ(0); // Create a new compositing layer
+
+  // Improve rendering quality of small elements
+  image-rendering: crisp-edges;
+
+  // Ensure correct border rendering
+  box-sizing: border-box;
+
+  &:hover {
+    background-color: color.adjust($block-color, $lightness: 5%);
+    border-color: $accent-color;
+    transform: translateZ(0) scale(1.05);
+    z-index: 10;
+  }
+
+  &.active {
+    background-color: $accent-color;
+    border-color: $accent-color;
+    transform: translateZ(0) scale(1.1);
+    z-index: 20;
+  }
+}
+
+// Responsive styles for different screen sizes
+@media (max-width: $tablet) {
+  .block {
+    border-width: 0.75px;
+    transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateZ(0) scale(1.08);
+    }
+
+    &.active {
+      transform: translateZ(0) scale(1.12);
+    }
+  }
+}
+
+@media (max-width: $mobile) {
+  .block {
+    border-width: 0.5px;
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateZ(0) scale(1.1);
+    }
+
+    &.active {
+      transform: translateZ(0) scale(1.15);
+    }
+  }
+}
+
+// For very small screens
+@media (max-width: 320px) {
+  .block {
+    border-width: 0.25px;
+    transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateZ(0) scale(1.15);
+    }
+
+    &.active {
+      transform: translateZ(0) scale(1.2);
+    }
+  }
+}
+
+// For high resolutions (retina)
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .block {
+    // Sharper borders on retina displays
+    border-width: 0.5px;
+  }
+}
+
+// Optimization for devices with limited resources
+@media (prefers-reduced-motion: reduce) {
+  .block {
+    transition: none;
+
+    &:hover,
+    &.active {
+      transform: translateZ(0);
+    }
+  }
+}
