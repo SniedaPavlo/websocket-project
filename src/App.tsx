@@ -7,7 +7,7 @@ import { useResponsive } from "./hooks/useResponsive";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./App.scss";
 
-import { Banana } from "./components/Icons/banana";
+import { LoadingIcon } from "./components/Icons/Loading";
 
 const App: React.FC = () => {
   // Mock data - no actual price requests
@@ -24,6 +24,8 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <ApiTester />
+      <LoadingIcon />
+
       <div className="app-container">
         <header className="header">
           <div className="header-content">

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { PriceData, ChartBlock } from "../../../types";
+import { PriceData, ChartBlock } from "@/types";
 import { BlockGrid } from "../BlockGrid";
 import {
   generateBlocksGrid,

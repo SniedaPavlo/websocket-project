@@ -4,6 +4,7 @@
 .block {
   // CSS custom properties for text scaling
   --text-scale: 1;
+  --base-top-right-size: 0.8rem;
   --base-main-size: 2rem; /* 1.8 * 1.1 */
   --base-sub-size: 0.9rem; /* 0.7 * 1.1 */
   background-color: $block-color;
@@ -15,6 +16,7 @@
   // Guarantee minimum size for clickability
   min-width: 4px;
   min-height: 4px;
+  padding: 10px 10px;
 
   // Performance optimization
   will-change: transform, background-color, border-color;
@@ -52,11 +54,48 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   width: 100%;
   height: 100%;
   padding: 2px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.headerWrapper {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topLeft {
+  display: flex;
+  align-items: center;
+
+  .bananas {
+    display: flex;
+    > *:not(:first-child) {
+      margin-left: -7px;
+    }
+  }
+}
+
+.topRight {
+  font-family: "Instrument Serif", serif;
+  font-weight: 400;
+  font-size: calc(var(--base-top-right-size) * var(--text-scale));
+  color: $text-sub-color;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px; // Limit maximum width
+  flex-shrink: 1; // Allow the element to shrink
+
+  // Automatically reduce font size for long text
+  &:has-text-overflow {
+    font-size: calc(var(--base-top-right-size) * var(--text-scale) * 0.8);
+  }
 }
 
 .textWrapper {
@@ -85,7 +124,7 @@
   font-weight: 400;
   font-size: calc(var(--base-sub-size) * var(--text-scale));
   line-height: 1; // Keep proportion 20/11.31
-  color: $color-sub-title;
+  color: $text-sub-color;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
