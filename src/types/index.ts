@@ -17,11 +17,9 @@ export interface ChartBlock {
   potValue?: string;
   mainText?: string;
   subText?: string;
+  //-------------------- when need a plus btn
+  status?: "loading" | "canPlusBet";
 }
 
 // Re-export config types
-export type {
-  HTTPConfig,
-  ChartConfig,
-  SolPriceChartConfig
-} from './config';
+export type { HTTPConfig, ChartConfig, SolPriceChartConfig } from "./config";

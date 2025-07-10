@@ -1,5 +1,3 @@
-import React from "react";
-
 export const LoadingIcon = () => {
   return (
     <svg
@@ -27,16 +25,16 @@ export const LoadingIcon = () => {
           
           @keyframes pathPulse {
             0%, 100% { 
-              fill: #1a1a1a;
+              fill: #0d0d0d;
             }
             25% { 
-              fill: #4a4a4a;
+              fill: #2d2d2d;
             }
             50% { 
-              fill: #6a6a6a;
+              fill: #424242;
             }
             75% { 
-              fill: #4a4a4a;
+              fill: #2d2d2d;
             }
           }
           
