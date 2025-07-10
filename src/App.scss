@@ -1,3 +1,4 @@
+@use "./styles/fonts.scss" as *;
 @use "./styles/variables.scss" as *;
 @use "sass:color";
 
@@ -226,7 +227,7 @@ body {
   overflow: hidden;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: -100%;
@@ -244,7 +245,7 @@ body {
   &:hover {
     transform: translateY(-3px);
     box-shadow: 0 12px 30px rgba($accent-color, 0.4);
-    
+
     &::before {
       left: 100%;
     }

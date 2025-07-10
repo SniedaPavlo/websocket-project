@@ -22,6 +22,11 @@ export const Block: React.FC<BlockProps> = ({ block, onClick }) => {
         height: `${block.height}px`,
       }}
       onClick={handleClick}
-    />
+    >
+      <div className={styles.content}>
+        <div className={styles.mainText}>1.3x</div>
+        <div className={styles.subText}>$4,110</div>
+      </div>
+    </div>
   );
 };
