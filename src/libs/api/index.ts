@@ -27,11 +27,17 @@ export interface ApiConfig {
   baseUrl?: string;
   apiKey?: string;
   timeout?: number;
+  wsUrl?: string;
 }
 
 export interface RequestOptions {
   jwt?: string;
   timeout?: number;
+}
+
+export interface WebSocketConfig {
+  feed: string;
+  from?: number;
 }
 
 // =============================================================================
@@ -145,6 +151,59 @@ export class HttpClient {
 }
 
 // =============================================================================
+// WEBSOCKET CLIENT
+// =============================================================================
+
+export class WebSocketClient {
+  private ws: WebSocket | null = null;
+  private wsUrl: string;
+
+  constructor(
+    config: WebSocketConfig,
+    baseUrl: string = "wss://bananazone.app"
+  ) {
+    const params = new URLSearchParams();
+    if (config.from) {
+      params.append("from", config.from.toString());
+    }
+
+    const queryString = params.toString();
+    const separator = queryString ? "?" : "";
+
+    this.wsUrl = `${baseUrl}/ws/feed/${config.feed}${separator}${queryString}`;
+  }
+
+  connect(): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      this.ws = new WebSocket(this.wsUrl);
+
+      this.ws.onopen = () => resolve(this.ws!);
+      this.ws.onerror = (error) => reject(error);
+    });
+  }
+
+  disconnect(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  onMessage(handler: (data: any) => void): void {
+    if (this.ws) {
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handler(data);
+        } catch (error) {
+          console.error("Failed to parse WebSocket message:", error);
+        }
+      };
+    }
+  }
+}
+
+// =============================================================================
 // API SERVICES
 // =============================================================================
 
@@ -195,6 +254,18 @@ export class PoolService {
   }
 }
 
+export class WebSocketService {
+  private wsUrl: string;
+
+  constructor(wsUrl: string = "wss://bananazone.app") {
+    this.wsUrl = wsUrl;
+  }
+
+  createConnection(config: WebSocketConfig): WebSocketClient {
+    return new WebSocketClient(config, this.wsUrl);
+  }
+}
+
 // =============================================================================
 // MAIN CLIENT
 // =============================================================================
@@ -202,12 +273,14 @@ export class PoolService {
 export class BananaZoneClient {
   public readonly competitions: CompetitionService;
   public readonly pools: PoolService;
+  public readonly websocket: WebSocketService;
 
   constructor(config: ApiConfig = {}) {
     const http = new HttpClient(config);
 
     this.competitions = new CompetitionService(http);
     this.pools = new PoolService(http);
+    this.websocket = new WebSocketService(config.wsUrl);
   }
 }
 
@@ -235,17 +308,27 @@ const pools = await client.pools.getActivePools({
   secondsPerPool: 30
 });
 
+// WebSocket usage
+const wsClient = client.websocket.createConnection({
+  feed: 'SOL_USD',
+  from: 1752142863
+});
+
+// Connect and handle messages
+const ws = await wsClient.connect();
+
+wsClient.onMessage((data) => {
+  console.log('Received:', data);
+});
+
+// Disconnect when done
+wsClient.disconnect();
+
 // Custom configuration
 const customClient = new BananaZoneClient({
   baseUrl: 'https://api.custom.banana.com',
+  wsUrl: 'wss://ws.custom.banana.com',
   apiKey: 'your-api-key',
   timeout: 5000,
 });
-
-// Using with JWT token
-const pools = await client.pools.getActivePools({
-  competitionKey: 'your-competition-key',
-  poolsPerPage: 20,
-  secondsPerPool: 60
-}, { jwt: 'your-jwt-token' });
 */
