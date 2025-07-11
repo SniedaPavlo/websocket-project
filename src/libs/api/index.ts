@@ -1,3 +1,5 @@
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -37,66 +39,71 @@ export interface RequestOptions {
 // =============================================================================
 
 export class HttpClient {
-  private readonly baseUrl: string;
+  private readonly axiosInstance: AxiosInstance;
   private readonly apiKey: string;
-  private readonly timeout: number;
 
   constructor(config: ApiConfig = {}) {
-    this.baseUrl = config.baseUrl || "https://bananazone.app/api";
     this.apiKey =
       config.apiKey ||
       "d4c3b4f6e2a8c9d0f1e2b3c4d5a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b";
-    this.timeout = config.timeout || 10000;
-  }
 
-  private getHeaders(jwt?: string): HeadersInit {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      "x-banana-key": this.apiKey,
-    };
+    this.axiosInstance = axios.create({
+      baseURL: config.baseUrl || "https://bananazone.app/api",
+      timeout: config.timeout || 10000,
+      headers: {
+        "Content-Type": "application/json",
+        "x-banana-key": this.apiKey,
+      },
+    });
 
-    if (jwt) {
-      headers["Authorization"] = `Bearer ${jwt}`;
-    }
+    // Request interceptor for adding JWT token
+    this.axiosInstance.interceptors.request.use((config) => {
+      return config;
+    });
 
-    return headers;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    method: string = "GET",
-    body?: any,
-    options: RequestOptions = {}
-  ): Promise<T> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      options.timeout || this.timeout
-    );
-
-    try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method,
-        headers: this.getHeaders(options.jwt),
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Response interceptor for error handling
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response) {
+          // Server returned an error
+          throw new Error(
+            `HTTP ${error.response.status}: ${error.response.statusText}`
+          );
+        } else if (error.request) {
+          // Request was sent but no response received
+          throw new Error("Network error: No response received");
+        } else {
+          // Other errors
+          throw new Error(`Request error: ${error.message}`);
+        }
       }
+    );
+  }
 
-      return await response.json();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
+  private getRequestConfig(options: RequestOptions = {}): AxiosRequestConfig {
+    const config: AxiosRequestConfig = {};
+
+    if (options.jwt) {
+      config.headers = {
+        Authorization: `Bearer ${options.jwt}`,
+      };
     }
+
+    if (options.timeout) {
+      config.timeout = options.timeout;
+    }
+
+    return config;
   }
 
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, "GET", undefined, options);
+    const config = this.getRequestConfig(options);
+    const response: AxiosResponse<T> = await this.axiosInstance.get(
+      endpoint,
+      config
+    );
+    return response.data;
   }
 
   async post<T>(
@@ -104,7 +111,36 @@ export class HttpClient {
     data?: any,
     options?: RequestOptions
   ): Promise<T> {
-    return this.request<T>(endpoint, "POST", data, options);
+    const config = this.getRequestConfig(options);
+    const response: AxiosResponse<T> = await this.axiosInstance.post(
+      endpoint,
+      data,
+      config
+    );
+    return response.data;
+  }
+
+  async put<T>(
+    endpoint: string,
+    data?: any,
+    options?: RequestOptions
+  ): Promise<T> {
+    const config = this.getRequestConfig(options);
+    const response: AxiosResponse<T> = await this.axiosInstance.put(
+      endpoint,
+      data,
+      config
+    );
+    return response.data;
+  }
+
+  async delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
+    const config = this.getRequestConfig(options);
+    const response: AxiosResponse<T> = await this.axiosInstance.delete(
+      endpoint,
+      config
+    );
+    return response.data;
   }
 }
 
@@ -217,4 +253,11 @@ const customClient = new BananaZoneClient({
   apiKey: 'your-api-key',
   timeout: 5000,
 });
+
+// Using with JWT token
+const pools = await client.pools.getActivePools({
+  competitionKey: 'your-competition-key',
+  poolsPerPage: 20,
+  secondsPerPool: 60
+}, { jwt: 'your-jwt-token' });
 */

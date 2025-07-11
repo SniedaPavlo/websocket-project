@@ -72,10 +72,10 @@ export const generateBlocksGrid = (
 
       blocks.push({
         id,
-        x: 0, // Будет пересчитано в компоненте
-        y: 0, // Будет пересчитано в компоненте
-        width: 0, // Будет пересчитано в компоненте
-        height: 0, // Будет пересчитано в компоненте
+        x: 0, // Will be recalculated in the component
+        y: 0, // Will be recalculated in the component
+        width: 0, // Will be recalculated in the component
+        height: 0, // Will be recalculated in the component
         isActive: false,
         row,
         col,
