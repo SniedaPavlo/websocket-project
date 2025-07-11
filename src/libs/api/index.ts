@@ -209,15 +209,6 @@ export class BananaZoneClient {
     this.competitions = new CompetitionService(http);
     this.pools = new PoolService(http);
   }
-
-  async ping(): Promise<boolean> {
-    try {
-      await this.competitions.getAll();
-      return true;
-    } catch {
-      return false;
-    }
-  }
 }
 
 // =============================================================================
@@ -243,9 +234,6 @@ const pools = await client.pools.getActivePools({
   poolsPerPage: 10,
   secondsPerPool: 30
 });
-
-// Check connection
-const isOnline = await client.ping();
 
 // Custom configuration
 const customClient = new BananaZoneClient({

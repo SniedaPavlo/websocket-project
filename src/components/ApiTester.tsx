@@ -20,14 +20,6 @@ export const ApiTester: React.FC = () => {
       }
 
       try {
-        // TEST 2: Ping
-        const isOnline = await client.ping();
-        console.log("[GET] /ping →", isOnline ? "ONLINE ✅" : "OFFLINE ❌");
-      } catch (err) {
-        console.error("[GET] /ping → ❌", err);
-      }
-
-      try {
         // TEST 3: pools
         const pools = await client.pools.getActivePools({
           competitionKey: "5131FyiapyPHMwoLrzxNtpg13nNDvYprK5GJ2eQreaq2",
