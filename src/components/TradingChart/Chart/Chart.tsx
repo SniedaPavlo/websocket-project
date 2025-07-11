@@ -7,17 +7,22 @@ import {
   getMinMaxPrice,
 } from "../../../libs/utils/chartUtils";
 import { useResponsive } from "../../../hooks/useResponsive";
+import { useWebSocketPrice } from "../../../hooks/useWebSocketPrice";
 import styles from "./Chart.module.scss";
 
 interface ChartProps {
-  priceData: PriceData[];
+  priceData?: PriceData[]; // Optional external price data
+  feed?: string; // WebSocket feed name (e.g., 'SOL_USD')
+  useWebSocket?: boolean; // Enable WebSocket connection
   width?: number;
   height?: number;
   className?: string;
 }
 
 export const Chart: React.FC<ChartProps> = ({
-  priceData,
+  priceData: externalPriceData,
+  feed = "SOL_USD",
+  useWebSocket = true,
   width = 800,
   height = 400,
   className = "",
@@ -25,10 +30,82 @@ export const Chart: React.FC<ChartProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<ChartBlock[]>([]);
-  const [chartDimensions, setChartDimensions] = useState({ width, height });
+  const [chartDimensions, setChartDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
   const { blockConfig } = useResponsive();
 
-  // Инициализация блоков (Initialize blocks)
+  // Debug props
+  console.log("🎨 Chart props:", {
+    externalPriceData,
+    feed,
+    useWebSocket,
+    width,
+    height,
+  });
+
+  // Use WebSocket hook for real-time price data
+  const hookResult = useWebSocketPrice({
+    feed,
+    maxDataPoints: 100,
+  });
+
+  console.log("🪝 Hook result:", {
+    priceDataLength: hookResult.priceData?.length || 0,
+    isConnected: hookResult.isConnected,
+    priceDataType: typeof hookResult.priceData,
+    priceDataIsArray: Array.isArray(hookResult.priceData),
+    firstItem: hookResult.priceData?.[0],
+    lastItem: hookResult.priceData?.[hookResult.priceData.length - 1],
+  });
+
+  const {
+    priceData: webSocketPriceData,
+    isConnected,
+  } = hookResult;
+
+  // Determine which price data to use
+  const priceData =
+    externalPriceData && externalPriceData.length > 0
+      ? externalPriceData
+      : webSocketPriceData || [];
+
+  console.log("📊 Final priceData:", {
+    source:
+      externalPriceData && externalPriceData.length > 0
+        ? "external"
+        : "websocket",
+    length: priceData?.length || 0,
+    type: typeof priceData,
+    isArray: Array.isArray(priceData),
+    isNull: priceData === null,
+    isUndefined: priceData === undefined,
+    sample: priceData?.slice(0, 3),
+  });
+
+  // Debug logging
+  useEffect(() => {
+    console.log("📈 Chart state update:", {
+      priceDataLength: priceData?.length || 0,
+      webSocketDataLength: webSocketPriceData?.length || 0,
+      externalDataLength: externalPriceData?.length || 0,
+      isConnected,
+      useWebSocket,
+      chartDimensions,
+      lastPrice: priceData?.[priceData?.length - 1],
+      firstPrice: priceData?.[0],
+    });
+  }, [
+    priceData,
+    webSocketPriceData,
+    externalPriceData,
+    isConnected,
+    useWebSocket,
+    chartDimensions,
+  ]);
+
+  // Initialize blocks
   useEffect(() => {
     const newBlocks = generateBlocksGrid(
       blockConfig.blocksPerRow,
@@ -37,50 +114,74 @@ export const Chart: React.FC<ChartProps> = ({
     setBlocks(newBlocks);
   }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
-  // Обработка изменения размера контейнера с debounce (Handle container resize with debounce)
+  // Handle container resize
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    const handleResize = () => {
+    const updateDimensions = () => {
       if (containerRef.current) {
-        const { clientWidth, clientHeight } = containerRef.current;
+        const rect = containerRef.current.getBoundingClientRect();
+        const newWidth = rect.width || width;
+        const newHeight = rect.height || height;
 
-        // Make sure the sizes are not zero
-        if (clientWidth > 0 && clientHeight > 0) {
+        console.log("Updating chart dimensions:", {
+          width: newWidth,
+          height: newHeight,
+        });
+
+        if (newWidth > 0 && newHeight > 0) {
           setChartDimensions({
-            width: clientWidth,
-            height: clientHeight,
+            width: newWidth,
+            height: newHeight,
           });
         }
       }
     };
 
-    const debouncedResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(handleResize, 16); // ~60fps
-    };
+    // Initial dimension update
+    updateDimensions();
 
-    const resizeObserver = new ResizeObserver(debouncedResize);
+    // Create ResizeObserver
+    const resizeObserver = new ResizeObserver(updateDimensions);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
-      handleResize(); // Initial size
     }
+
+    // Also listen to window resize as fallback
+    window.addEventListener("resize", updateDimensions);
 
     return () => {
       resizeObserver.disconnect();
-      clearTimeout(timeoutId);
+      window.removeEventListener("resize", updateDimensions);
     };
-  }, []);
+  }, [width, height]);
 
-  // Логика отрисовки на canvas (Canvas drawing logic)
+  // Canvas drawing logic
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !priceData.length || chartDimensions.width === 0) return;
+    const ctx = canvas?.getContext("2d");
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    console.log("🎨 Canvas effect triggered:", {
+      canvas: !!canvas,
+      ctx: !!ctx,
+      priceData: priceData?.length || 0,
+      dimensions: chartDimensions,
+    });
 
-    // Устанавливаем размер canvas с учетом device pixel ratio для четкости (Set canvas size with device pixel ratio for crisp rendering)
+    if (
+      !canvas ||
+      !ctx ||
+      chartDimensions.width === 0 ||
+      chartDimensions.height === 0
+    ) {
+      console.log("❌ Canvas not ready:", {
+        canvas: !!canvas,
+        ctx: !!ctx,
+        width: chartDimensions.width,
+        height: chartDimensions.height,
+      });
+      return;
+    }
+
+    // Clear and setup canvas
     const dpr = window.devicePixelRatio || 1;
     canvas.width = chartDimensions.width * dpr;
     canvas.height = chartDimensions.height * dpr;
@@ -88,62 +189,117 @@ export const Chart: React.FC<ChartProps> = ({
     canvas.style.height = `${chartDimensions.height}px`;
     ctx.scale(dpr, dpr);
 
+    // Clear canvas
     ctx.clearRect(0, 0, chartDimensions.width, chartDimensions.height);
 
-    const { min, max } = getMinMaxPrice(priceData);
-    const padding = (max - min) * 0.1;
+    // Force data for testing - create mock data if none exists
+    let dataToRender = priceData;
+    if (!dataToRender || dataToRender.length === 0) {
+      console.log("🧪 No data found, creating mock data");
+      dataToRender = [
+        { timestamp: Date.now() - 10000, price: 180.25 },
+        { timestamp: Date.now() - 8000, price: 181.50 },
+        { timestamp: Date.now() - 6000, price: 179.75 },
+        { timestamp: Date.now() - 4000, price: 182.00 },
+        { timestamp: Date.now() - 2000, price: 183.25 },
+        { timestamp: Date.now(), price: 184.50 },
+      ];
+    }
+
+    console.log("✅ Rendering with data:", dataToRender.length, "points");
+
+    // Draw background for debugging
+    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.fillRect(0, 0, chartDimensions.width, chartDimensions.height);
+
+    // Calculate price range
+    const prices = dataToRender.map(d => d.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const padding = (max - min) * 0.1 || 1;
     const minPrice = min - padding;
     const maxPrice = max + padding;
 
-    const blockWidth = chartDimensions.width / blockConfig.blocksPerRow;
-    const pointSpacing = Math.max(1, blockWidth * 0.25); // Adaptive spacing
-    const progress = Math.min(priceData.length / 100, 1);
-    const endOffset = 5 * blockWidth - 2 * blockWidth * progress;
-    const chartEndX = chartDimensions.width - endOffset;
-    const startOffset =
-      priceData.length > 0
-        ? chartEndX - (priceData.length - 1) * pointSpacing
-        : chartEndX;
+    console.log("💰 Price range:", { min, max, minPrice, maxPrice });
 
-    // Адаптивная толщина линии в зависимости от размера контейнера (Adaptive line width based on container size)
-    const lineWidth = Math.max(1, Math.min(3, chartDimensions.width / 400));
+    // Draw line with thicker stroke and brighter color
+    ctx.strokeStyle = "#00FF00"; // Bright green for visibility
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 
-    ctx.strokeStyle = "#13AE5C";
-    ctx.lineWidth = lineWidth;
+    // Draw the price line
     ctx.beginPath();
 
-    priceData.forEach((data, i) => {
-      const x = startOffset + i * pointSpacing;
-      const y = normalizePrice(
-        data.price,
-        minPrice,
-        maxPrice,
-        chartDimensions.height
-      );
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    const pointSpacing = chartDimensions.width / Math.max(1, dataToRender.length - 1);
+    
+    dataToRender.forEach((data, i) => {
+      const x = i * pointSpacing;
+      const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
+      const y = chartDimensions.height - (normalizedY * chartDimensions.height * 0.8) - 20;
+
+      console.log(`Point ${i}:`, { x, y, price: data.price });
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
     });
 
     ctx.stroke();
 
-    // Рисуем последнюю точку (Draw last point)
-    if (priceData.length > 0) {
-      const lastData = priceData[priceData.length - 1];
-      const x = startOffset + (priceData.length - 1) * pointSpacing;
-      const y = normalizePrice(
-        lastData.price,
-        minPrice,
-        maxPrice,
-        chartDimensions.height
-      );
+    // Draw points for each data point
+    ctx.fillStyle = "#00FF00";
+    dataToRender.forEach((data, i) => {
+      const x = i * pointSpacing;
+      const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
+      const y = chartDimensions.height - (normalizedY * chartDimensions.height * 0.8) - 20;
 
-      const pointRadius = Math.max(2, Math.min(6, chartDimensions.width / 200));
-
-      ctx.fillStyle = "#13AE5C";
       ctx.beginPath();
-      ctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
+      ctx.arc(x, y, 3, 0, 2 * Math.PI);
       ctx.fill();
+    });
+
+    // Draw last point bigger
+    if (dataToRender.length > 0) {
+      const lastData = dataToRender[dataToRender.length - 1];
+      const lastX = (dataToRender.length - 1) * pointSpacing;
+      const lastNormalizedY = (lastData.price - minPrice) / (maxPrice - minPrice);
+      const lastY = chartDimensions.height - (lastNormalizedY * chartDimensions.height * 0.8) - 20;
+
+      // Outer glow
+      ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 12, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Inner point
+      ctx.fillStyle = "#00FF00";
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 5, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Draw price text for last point
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 14px Arial";
+      ctx.fillText(`$${lastData.price.toFixed(2)}`, lastX + 10, lastY);
     }
-  }, [priceData, chartDimensions, blockConfig]);
+
+    // Draw connection status
+    if (useWebSocket) {
+      ctx.font = "12px Arial";
+      ctx.fillStyle = isConnected ? "#13AE5C" : "#FF6B6B";
+      const statusText = isConnected ? "● LIVE" : "● OFFLINE";
+      ctx.fillText(statusText, chartDimensions.width - 60, 20);
+    }
+
+    // Draw debug info
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "12px Arial";
+    ctx.fillText(`Data points: ${dataToRender.length}`, 10, chartDimensions.height - 10);
+    
+  }, [priceData, chartDimensions, useWebSocket, isConnected]);
 
   const handleBlockClick = useCallback((blockId: string) => {
     setBlocks((prev) =>
@@ -153,6 +309,22 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
+  // Calculate price labels
+  const priceLabels = React.useMemo(() => {
+    if (!priceData || priceData.length === 0) return [];
+
+    const { min, max } = getMinMaxPrice(priceData);
+    const padding = (max - min) * 0.1 || 1;
+    const minPrice = min - padding;
+    const maxPrice = max + padding;
+    const steps = 5;
+
+    return Array.from({ length: steps + 1 }, (_, i) => {
+      const price = maxPrice - (maxPrice - minPrice) * (i / steps);
+      return price.toFixed(2);
+    });
+  }, [priceData]);
+
   return (
     <div
       ref={containerRef}
@@ -160,32 +332,15 @@ export const Chart: React.FC<ChartProps> = ({
       style={{
         width: width || "100%",
         height: height || "100%",
-        minWidth: "200px",
-        minHeight: "200px",
       }}
     >
       <div className={styles.chartWrapper}>
         <div className={styles.priceLabels}>
-          {priceData.length > 0 &&
-            (() => {
-              const { min, max } = getMinMaxPrice(priceData);
-              const padding = (max - min) * 0.1;
-              const minPrice = min - padding;
-              const maxPrice = max + padding;
-              const priceSteps = Math.min(
-                5,
-                Math.floor(chartDimensions.height / 60)
-              );
-              return Array.from({ length: priceSteps + 1 }, (_, i) => {
-                const price =
-                  maxPrice - (maxPrice - minPrice) * (i / priceSteps);
-                return (
-                  <div key={i} className={styles.priceLabel}>
-                    {price.toFixed(2)}
-                  </div>
-                );
-              });
-            })()}
+          {priceLabels.map((price, i) => (
+            <div key={i} className={styles.priceLabel}>
+              ${price}
+            </div>
+          ))}
         </div>
 
         <div className={styles.chartContent}>
@@ -195,10 +350,10 @@ export const Chart: React.FC<ChartProps> = ({
             className={styles.blockGrid}
             blocksPerRow={blockConfig.blocksPerRow}
             blocksPerColumn={blockConfig.blocksPerColumn}
-            containerWidth={chartDimensions.width - 60} // Minus priceLabels width
-            containerHeight={chartDimensions.height}
           />
-          <canvas ref={canvasRef} className={styles.canvas} />
+          <div className={styles.canvasContainer}>
+            <canvas ref={canvasRef} className={styles.canvas} />
+          </div>
         </div>
       </div>
     </div>
