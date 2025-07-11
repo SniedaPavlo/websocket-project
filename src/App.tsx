@@ -1,7 +1,6 @@
 import React from "react";
 import { Chart } from "./components/TradingChart/Chart";
 import { PriceDisplay } from "./components/TradingChart/PriceDisplay";
-import { StatsPanel } from "./components/StatsPanel";
 import { ApiTester } from "./components/ApiTester";
 import { useResponsive } from "./hooks/useResponsive";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -48,13 +47,6 @@ const App: React.FC = () => {
                 </div>
               </ErrorBoundary>
             </div>
-          </div>
-          <div className="stats-section">
-            <StatsPanel
-              priceData={priceData}
-              isConnected={isConnected}
-              onClearData={clearData}
-            />
           </div>
         </main>
       </div>
