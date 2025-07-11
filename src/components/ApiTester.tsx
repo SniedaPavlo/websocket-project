@@ -36,52 +36,52 @@ export const ApiTester: React.FC = () => {
         console.error("[POST] /pools → ❌", err);
       }
 
-      try {
-        // TEST 3: WebSocket connection
-        console.log("🔍 Testing WebSocket connection...");
+      // try {
+      //   // TEST 3: WebSocket connection
+      //   console.log("🔍 Testing WebSocket connection...");
 
-        const wsClient = client.websocket.createConnection({
-          feed: "SOL_USD",
-          from: 1752142863,
-        });
+      //   const wsClient = client.websocket.createConnection({
+      //     feed: "SOL_USD",
+      //     from: 1752142863,
+      //   });
 
-        // Store reference for cleanup
-        wsClientRef.current = wsClient;
+      //   // Store reference for cleanup
+      //   wsClientRef.current = wsClient;
 
-        // Connect
-        const ws = await wsClient.connect();
-        console.log("✅ [WebSocket] Connected successfully!");
+      //   // Connect
+      //   const ws = await wsClient.connect();
+      //   console.log("✅ [WebSocket] Connected successfully!");
 
-        // Set up message handler
-        wsClient.onMessage((data) => {
-          console.log("📨 [WebSocket] Message received:", data);
-        });
+      //   // Set up message handler
+      //   wsClient.onMessage((data) => {
+      //     console.log("📨 [WebSocket] Message received:", data);
+      //   });
 
-        // Test multiple connections
-        console.log("🔍 Testing multiple WebSocket connections...");
-        const btcClient = client.websocket.createConnection({
-          feed: "BTC_USD",
-        });
+      //   // Test multiple connections
+      //   console.log("🔍 Testing multiple WebSocket connections...");
+      //   const btcClient = client.websocket.createConnection({
+      //     feed: "BTC_USD",
+      //   });
 
-        try {
-          await btcClient.connect();
-          console.log("✅ [BTC WebSocket] Connected");
+      //   try {
+      //     await btcClient.connect();
+      //     console.log("✅ [BTC WebSocket] Connected");
 
-          btcClient.onMessage((data) => {
-            console.log("📨 [BTC WebSocket] Message:", data);
-          });
+      //     btcClient.onMessage((data) => {
+      //       console.log("📨 [BTC WebSocket] Message:", data);
+      //     });
 
-          // Disconnect after 5 seconds
-          setTimeout(() => {
-            btcClient.disconnect();
-            console.log("🔌 [BTC WebSocket] Disconnected");
-          }, 5000);
-        } catch (err) {
-          console.error("❌ [BTC WebSocket] Connection failed:", err);
-        }
-      } catch (err) {
-        console.error("❌ [WebSocket] Connection failed:", err);
-      }
+      //     // Disconnect after 5 seconds
+      //     setTimeout(() => {
+      //       btcClient.disconnect();
+      //       console.log("🔌 [BTC WebSocket] Disconnected");
+      //     }, 5000);
+      //   } catch (err) {
+      //     console.error("❌ [BTC WebSocket] Connection failed:", err);
+      //   }
+      // } catch (err) {
+      //   console.error("❌ [WebSocket] Connection failed:", err);
+      // }
 
       try {
         // TEST 4: Cache functionality
