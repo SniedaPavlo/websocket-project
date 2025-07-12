@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 export interface BlockConfig {
   blocksPerRow: number;
   blocksPerColumn: number;
+  stopAtBlock: number; // New field - at which block to stop the curve
 }
 
 export interface ResponsiveConfig {
@@ -38,11 +39,23 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  //don't change values!
+  // Updated config with stop points
   const defaultConfig: ResponsiveConfig = {
-    mobile: { blocksPerRow: 7, blocksPerColumn: 4 },
-    tablet: { blocksPerRow: 7, blocksPerColumn: 4 },
-    desktop: { blocksPerRow: 10, blocksPerColumn: 4 },
+    mobile: {
+      blocksPerRow: 7,
+      blocksPerColumn: 4,
+      stopAtBlock: 5, // Stop at 5th block (out of 7)
+    },
+    tablet: {
+      blocksPerRow: 7,
+      blocksPerColumn: 4,
+      stopAtBlock: 5, // Stop at 5th block (out of 7)
+    },
+    desktop: {
+      blocksPerRow: 10,
+      blocksPerColumn: 4,
+      stopAtBlock: 7, // Stop at 7th block (out of 10)
+    },
   };
 
   const config = {
@@ -57,6 +70,13 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
     return config.desktop;
   };
 
+  // New function to calculate stop position
+  const getStopPosition = (chartWidth: number): number => {
+    const blockConfig = getBlockConfig();
+    const blockWidth = chartWidth / blockConfig.blocksPerRow;
+    return blockWidth * blockConfig.stopAtBlock;
+  };
+
   return {
     windowSize,
     isMobile,
@@ -64,5 +84,6 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
     isDesktop,
     blockConfig: getBlockConfig(),
     getBlockConfig,
+    getStopPosition, // New function
   };
 };

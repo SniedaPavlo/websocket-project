@@ -30,19 +30,19 @@ export const Chart: React.FC<ChartProps> = ({
     width: 0,
     height: 0,
   });
-  const { blockConfig } = useResponsive();
+  const { blockConfig, getStopPosition } = useResponsive();
 
-  // Получение данных WebSocket
+  // WebSocket data fetching
   const { priceData, isConnected } = useWebSocketPrice({ feed });
 
-  // Состояние загрузки WebSocket
+  // WebSocket loading state
   const [isLoadingWebSocket, setIsLoadingWebSocket] = useState(false);
   const [filteredPriceData, setFilteredPriceData] = useState<PriceData[]>([]);
   const [webSocketStartTime, setWebSocketStartTime] = useState<number | null>(
     null
   );
 
-  // Функция загрузки WebSocket
+  // WebSocket loading function
   const LoadingWebSocket = useCallback(() => {
     if (isConnected && !isLoadingWebSocket && webSocketStartTime === null) {
       console.log("🔄 Starting WebSocket loading phase...");
@@ -50,7 +50,7 @@ export const Chart: React.FC<ChartProps> = ({
       setWebSocketStartTime(Date.now());
       setFilteredPriceData([]); // Clear any existing data
 
-      // Запуск таймера на 2 секунды
+      // Start 2s timer
       const timer = setTimeout(() => {
         console.log(
           "✅ WebSocket loading phase completed. Starting to accept data..."
@@ -62,17 +62,17 @@ export const Chart: React.FC<ChartProps> = ({
     }
   }, [isConnected, isLoadingWebSocket, webSocketStartTime]);
 
-  // Запуск LoadingWebSocket при подключении
+  // Start LoadingWebSocket on connect
   useEffect(() => {
     LoadingWebSocket();
   }, [LoadingWebSocket]);
 
-  // Фильтрация данных о цене в зависимости от состояния загрузки
+  // Filter price data depending on loading state
   useEffect(() => {
     if (!isLoadingWebSocket && webSocketStartTime !== null) {
-      // Принимать только данные, пришедшие после 2-секундной загрузки
+      // Accept only data that arrived after 2s loading
       const acceptableData = priceData.filter((data) => {
-        // Если у данных есть timestamp, используем его, иначе текущее время
+        // If data has timestamp, use it, else use current time
         const dataTime = data.timestamp || Date.now();
         return dataTime > webSocketStartTime + 2000;
       });
@@ -85,12 +85,12 @@ export const Chart: React.FC<ChartProps> = ({
         webSocketStartTime,
       });
     } else {
-      // Во время загрузки держим фильтрованные данные пустыми
+      // Keep filtered data empty during loading
       setFilteredPriceData([]);
     }
   }, [priceData, isLoadingWebSocket, webSocketStartTime]);
 
-  // Сброс состояния WebSocket при отключении
+  // Reset WebSocket state on disconnect
   useEffect(() => {
     if (!isConnected) {
       setIsLoadingWebSocket(false);
@@ -100,7 +100,7 @@ export const Chart: React.FC<ChartProps> = ({
     }
   }, [isConnected]);
 
-  // Отладка
+  // Debug
   useEffect(() => {
     console.log("📊 Chart data:", {
       priceDataLength: priceData.length,
@@ -109,6 +109,7 @@ export const Chart: React.FC<ChartProps> = ({
       isLoadingWebSocket,
       webSocketStartTime,
       lastPrice: filteredPriceData[filteredPriceData.length - 1],
+      stopPosition: getStopPosition(chartDimensions.width),
     });
   }, [
     priceData,
@@ -116,9 +117,11 @@ export const Chart: React.FC<ChartProps> = ({
     isConnected,
     isLoadingWebSocket,
     webSocketStartTime,
+    chartDimensions.width,
+    getStopPosition,
   ]);
 
-  // Инициализация блоков
+  // Blocks initialization
   useEffect(() => {
     const newBlocks = generateBlocksGrid(
       blockConfig.blocksPerRow,
@@ -127,7 +130,7 @@ export const Chart: React.FC<ChartProps> = ({
     setBlocks(newBlocks);
   }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
-  // Обработка изменения размера контейнера
+  // Handle container resize
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
@@ -151,7 +154,7 @@ export const Chart: React.FC<ChartProps> = ({
     return () => resizeObserver.disconnect();
   }, [width, height]);
 
-  // Рисование графика
+  // Chart drawing with stop position logic
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -165,7 +168,7 @@ export const Chart: React.FC<ChartProps> = ({
       return;
     }
 
-    // Настройка canvas
+    // Canvas setup
     const dpr = window.devicePixelRatio || 1;
     canvas.width = chartDimensions.width * dpr;
     canvas.height = chartDimensions.height * dpr;
@@ -173,10 +176,10 @@ export const Chart: React.FC<ChartProps> = ({
     canvas.style.height = `${chartDimensions.height}px`;
     ctx.scale(dpr, dpr);
 
-    // Очистка canvas
+    // Clear canvas
     ctx.clearRect(0, 0, chartDimensions.width, chartDimensions.height);
 
-    // Показать состояние загрузки во время инициализации WebSocket
+    // Show loading state during WebSocket initialization
     if (isLoadingWebSocket) {
       ctx.fillStyle = "#FFD700";
       ctx.fillRect(10, 10, 120, 50);
@@ -185,7 +188,7 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.fillText("Loading...", 20, 30);
       ctx.fillText("Please wait 2s", 20, 45);
 
-      // Статус соединения
+      // Connection status
       ctx.font = "12px Arial";
       ctx.fillStyle = "#FFD700";
       ctx.fillText("● LOADING", chartDimensions.width - 80, 20);
@@ -193,20 +196,38 @@ export const Chart: React.FC<ChartProps> = ({
       return;
     }
 
-    // Нарисовать линию цены, если есть фильтрованные данные
+    // Draw price line if there is filtered data
     if (filteredPriceData.length > 1) {
       const { min, max } = getMinMaxPrice(filteredPriceData);
       const padding = (max - min) * 0.1 || 1;
       const minPrice = min - padding;
       const maxPrice = max + padding;
 
-      // Вычислить расстояние между точками, чтобы заполнить график слева направо
-      const pointSpacing =
-        chartDimensions.width / Math.max(100, filteredPriceData.length);
-      const startX = 0; // Всегда начинать с начала
+      // Получаем позицию остановки
+      const stopPosition = getStopPosition(chartDimensions.width);
 
-      // Создать градиент с более частыми переходами
-      const gradient = ctx.createLinearGradient(0, 0, chartDimensions.width, 0);
+      // Рассчитываем расстояние между точками (фиксированное)
+      const pointSpacing = 4; // Фиксированное расстояние между точками
+      const startX = 0;
+
+      // Рассчитываем текущую позицию последней точки
+      const currentEndPosition = Math.min(
+        (filteredPriceData.length - 1) * pointSpacing,
+        stopPosition
+      );
+
+      // Определяем, сколько точек показывать
+      const pointsToShow = Math.min(
+        filteredPriceData.length,
+        Math.floor(stopPosition / pointSpacing) + 1
+      );
+
+      // Берем данные для отображения
+      const dataToShow = filteredPriceData.slice(-pointsToShow);
+
+      // Create gradient for the current line length
+      const currentGradientWidth = Math.min(currentEndPosition, stopPosition);
+      const gradient = ctx.createLinearGradient(0, 0, currentGradientWidth, 0);
 
       gradient.addColorStop(0.0, "#FAE279");
       gradient.addColorStop(0.05, "#FBEBB0");
@@ -230,7 +251,7 @@ export const Chart: React.FC<ChartProps> = ({
       gradient.addColorStop(0.95, "#FCE57C");
       gradient.addColorStop(1.0, "#FAE279");
 
-      // Нарисовать линию
+      // Draw line
       ctx.strokeStyle = gradient;
       ctx.lineWidth = 3.3;
       ctx.lineCap = "round";
@@ -238,8 +259,22 @@ export const Chart: React.FC<ChartProps> = ({
 
       ctx.beginPath();
 
-      filteredPriceData.forEach((data, i) => {
-        const x = startX + i * pointSpacing;
+      dataToShow.forEach((data, i) => {
+        // Рассчитываем позицию точки
+        let x;
+
+        if (currentEndPosition >= stopPosition) {
+          // Если достигли точки остановки, сдвигаем все точки влево
+          const offsetFromEnd = dataToShow.length - 1 - i;
+          x = stopPosition - offsetFromEnd * pointSpacing;
+        } else {
+          // Обычное движение с начала
+          x = startX + i * pointSpacing;
+        }
+
+        // Убеждаемся, что точка не выходит за границы
+        x = Math.max(0, Math.min(x, stopPosition));
+
         const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
         const y =
           chartDimensions.height -
@@ -255,9 +290,9 @@ export const Chart: React.FC<ChartProps> = ({
 
       ctx.stroke();
 
-      // Нарисовать последнюю точку
-      const lastData = filteredPriceData[filteredPriceData.length - 1];
-      const lastX = startX + (filteredPriceData.length - 1) * pointSpacing;
+      // Draw last point
+      const lastData = dataToShow[dataToShow.length - 1];
+      const lastX = Math.min(currentEndPosition, stopPosition);
       const lastNormalizedY =
         (lastData.price - minPrice) / (maxPrice - minPrice);
       const lastY =
@@ -275,12 +310,33 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.arc(lastX, lastY, 5, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Текст цены
+      // Price text - позиционируем относительно последней точки
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "bold 14px Arial";
-      ctx.fillText(`$${lastData.price.toFixed(2)}`, lastX + 10, lastY);
+      const priceText = `${lastData.price.toFixed(2)}`;
+      const textWidth = ctx.measureText(priceText).width;
+
+      // Если текст не помещается справа, показываем слева
+      const textX =
+        lastX + textWidth + 20 > chartDimensions.width
+          ? lastX - textWidth - 10
+          : lastX + 10;
+
+      ctx.fillText(priceText, textX, lastY);
+
+      // Рисуем вертикальную линию остановки для визуализации (только когда достигли)
+      if (currentEndPosition >= stopPosition) {
+        ctx.strokeStyle = "rgba(252, 229, 124, 0.2)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(stopPosition, 0);
+        ctx.lineTo(stopPosition, chartDimensions.height);
+        ctx.stroke();
+        ctx.setLineDash([]); // Сбрасываем пунктир
+      }
     } else if (isConnected && !isLoadingWebSocket) {
-      // Ожидание данных после загрузки
+      // Waiting for data after loading
       ctx.fillStyle = "#FF6B6B";
       ctx.fillRect(10, 10, 140, 50);
       ctx.fillStyle = "#FFFFFF";
@@ -288,7 +344,7 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.fillText("Waiting for data...", 20, 30);
       ctx.fillText("Connected & Ready", 20, 45);
     } else {
-      // Нет соединения
+      // No connection
       ctx.fillStyle = "#FF0000";
       ctx.fillRect(10, 10, 120, 50);
       ctx.fillStyle = "#FFFFFF";
@@ -297,7 +353,7 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.fillText(`Status: ${isConnected}`, 20, 45);
     }
 
-    // Статус соединения
+    // Connection status
     ctx.font = "12px Arial";
     if (isLoadingWebSocket) {
       ctx.fillStyle = "#FFD700";
@@ -307,7 +363,13 @@ export const Chart: React.FC<ChartProps> = ({
       const statusText = isConnected ? "● LIVE" : "● OFFLINE";
       ctx.fillText(statusText, chartDimensions.width - 60, 20);
     }
-  }, [filteredPriceData, chartDimensions, isConnected, isLoadingWebSocket]);
+  }, [
+    filteredPriceData,
+    chartDimensions,
+    isConnected,
+    isLoadingWebSocket,
+    getStopPosition,
+  ]);
 
   const handleBlockClick = useCallback((blockId: string) => {
     setBlocks((prev) =>
@@ -317,7 +379,7 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
-  // Ценовые метки - используем фильтрованные данные
+  // Price labels - use filtered data
   const priceLabels = React.useMemo(() => {
     if (filteredPriceData.length === 0) return [];
 
