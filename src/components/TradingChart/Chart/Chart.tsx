@@ -25,12 +25,13 @@ export const Chart: React.FC<ChartProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const blockGridRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<ChartBlock[]>([]);
   const [chartDimensions, setChartDimensions] = useState({
     width: 0,
     height: 0,
   });
-  const { blockConfig, getStopPosition } = useResponsive();
+  const { blockConfig } = useResponsive();
 
   // WebSocket data fetching
   const { priceData, isConnected } = useWebSocketPrice({ feed });
@@ -42,15 +43,48 @@ export const Chart: React.FC<ChartProps> = ({
     null
   );
 
+  // Function to get the exact block dimensions from the DOM
+  const getActualBlockDimensions = useCallback(() => {
+    if (
+      !blockGridRef.current ||
+      chartDimensions.width === 0 ||
+      chartDimensions.height === 0
+    ) {
+      return {
+        blockWidth: 0,
+        blockHeight: 0,
+        stopPosition: 0,
+        totalWidth: chartDimensions.width,
+        totalHeight: chartDimensions.height,
+      };
+    }
+
+    // Get exact sizes from the DOM
+    const containerRect = blockGridRef.current.getBoundingClientRect();
+    const actualWidth = containerRect.width;
+    const actualHeight = containerRect.height;
+
+    const blockWidth = actualWidth / blockConfig.blocksPerRow;
+    const blockHeight = actualHeight / blockConfig.blocksPerColumn;
+    const stopPosition = blockWidth * blockConfig.stopAtBlock;
+
+    return {
+      blockWidth,
+      blockHeight,
+      stopPosition,
+      totalWidth: actualWidth,
+      totalHeight: actualHeight,
+    };
+  }, [chartDimensions, blockConfig, blockGridRef]);
+
   // WebSocket loading function
   const LoadingWebSocket = useCallback(() => {
     if (isConnected && !isLoadingWebSocket && webSocketStartTime === null) {
       console.log("🔄 Starting WebSocket loading phase...");
       setIsLoadingWebSocket(true);
       setWebSocketStartTime(Date.now());
-      setFilteredPriceData([]); // Clear any existing data
+      setFilteredPriceData([]);
 
-      // Start 2s timer
       const timer = setTimeout(() => {
         console.log(
           "✅ WebSocket loading phase completed. Starting to accept data..."
@@ -62,7 +96,6 @@ export const Chart: React.FC<ChartProps> = ({
     }
   }, [isConnected, isLoadingWebSocket, webSocketStartTime]);
 
-  // Start LoadingWebSocket on connect
   useEffect(() => {
     LoadingWebSocket();
   }, [LoadingWebSocket]);
@@ -70,22 +103,13 @@ export const Chart: React.FC<ChartProps> = ({
   // Filter price data depending on loading state
   useEffect(() => {
     if (!isLoadingWebSocket && webSocketStartTime !== null) {
-      // Accept only data that arrived after 2s loading
       const acceptableData = priceData.filter((data) => {
-        // If data has timestamp, use it, else use current time
         const dataTime = data.timestamp || Date.now();
         return dataTime > webSocketStartTime + 2000;
       });
 
       setFilteredPriceData(acceptableData);
-      console.log("📊 Filtered price data:", {
-        totalData: priceData.length,
-        filteredData: acceptableData.length,
-        isLoadingWebSocket,
-        webSocketStartTime,
-      });
     } else {
-      // Keep filtered data empty during loading
       setFilteredPriceData([]);
     }
   }, [priceData, isLoadingWebSocket, webSocketStartTime]);
@@ -99,27 +123,6 @@ export const Chart: React.FC<ChartProps> = ({
       console.log("🔌 WebSocket disconnected. Resetting state...");
     }
   }, [isConnected]);
-
-  // Debug
-  useEffect(() => {
-    console.log("📊 Chart data:", {
-      priceDataLength: priceData.length,
-      filteredDataLength: filteredPriceData.length,
-      isConnected,
-      isLoadingWebSocket,
-      webSocketStartTime,
-      lastPrice: filteredPriceData[filteredPriceData.length - 1],
-      stopPosition: getStopPosition(chartDimensions.width),
-    });
-  }, [
-    priceData,
-    filteredPriceData,
-    isConnected,
-    isLoadingWebSocket,
-    webSocketStartTime,
-    chartDimensions.width,
-    getStopPosition,
-  ]);
 
   // Blocks initialization
   useEffect(() => {
@@ -145,7 +148,6 @@ export const Chart: React.FC<ChartProps> = ({
     };
 
     updateDimensions();
-
     const resizeObserver = new ResizeObserver(updateDimensions);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
@@ -154,7 +156,7 @@ export const Chart: React.FC<ChartProps> = ({
     return () => resizeObserver.disconnect();
   }, [width, height]);
 
-  // Chart drawing with stop position logic
+  // Chart drawing with perfect block synchronization
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -168,7 +170,7 @@ export const Chart: React.FC<ChartProps> = ({
       return;
     }
 
-    // Canvas setup
+    // Canvas setup with exact dimensions
     const dpr = window.devicePixelRatio || 1;
     canvas.width = chartDimensions.width * dpr;
     canvas.height = chartDimensions.height * dpr;
@@ -179,7 +181,7 @@ export const Chart: React.FC<ChartProps> = ({
     // Clear canvas
     ctx.clearRect(0, 0, chartDimensions.width, chartDimensions.height);
 
-    // Show loading state during WebSocket initialization
+    // Show loading state
     if (isLoadingWebSocket) {
       ctx.fillStyle = "#FFD700";
       ctx.fillRect(10, 10, 120, 50);
@@ -188,91 +190,88 @@ export const Chart: React.FC<ChartProps> = ({
       ctx.fillText("Loading...", 20, 30);
       ctx.fillText("Please wait 2s", 20, 45);
 
-      // Connection status
       ctx.font = "12px Arial";
       ctx.fillStyle = "#FFD700";
       ctx.fillText("● LOADING", chartDimensions.width - 80, 20);
-
       return;
     }
 
-    // Draw price line if there is filtered data
+    // Draw price line if data available
     if (filteredPriceData.length > 1) {
       const { min, max } = getMinMaxPrice(filteredPriceData);
       const padding = (max - min) * 0.1 || 1;
       const minPrice = min - padding;
       const maxPrice = max + padding;
 
-      // Получаем позицию остановки
-      const stopPosition = getStopPosition(chartDimensions.width);
+      // Get the exact block sizes
+      const blockDims = getActualBlockDimensions();
+      const { blockWidth, stopPosition } = blockDims;
 
-      // Рассчитываем расстояние между точками (фиксированное)
-      const pointSpacing = 4; // Фиксированное расстояние между точками
-      const startX = 0;
+      if (blockWidth === 0 || stopPosition === 0) {
+        return; // Wait for correct initialization
+      }
 
-      // Рассчитываем текущую позицию последней точки
-      const currentEndPosition = Math.min(
+      // Adaptive distance between points
+      let pointSpacing: number;
+      if (blockConfig.blocksPerRow <= 7) {
+        // Mobile/tablet - more frequent points
+        pointSpacing = blockWidth / 6;
+      } else {
+        // Desktop - less frequent points
+        pointSpacing = blockWidth / 4;
+      }
+
+      // Calculate the current movement position
+      const currentPosition = Math.min(
         (filteredPriceData.length - 1) * pointSpacing,
         stopPosition
       );
 
-      // Определяем, сколько точек показывать
-      const pointsToShow = Math.min(
-        filteredPriceData.length,
-        Math.floor(stopPosition / pointSpacing) + 1
+      // Determine the number of points to display
+      const maxPoints = Math.floor(stopPosition / pointSpacing) + 1;
+      const dataToShow = filteredPriceData.slice(
+        -Math.min(filteredPriceData.length, maxPoints)
       );
 
-      // Берем данные для отображения
-      const dataToShow = filteredPriceData.slice(-pointsToShow);
-
-      // Create gradient for the current line length
-      const currentGradientWidth = Math.min(currentEndPosition, stopPosition);
-      const gradient = ctx.createLinearGradient(0, 0, currentGradientWidth, 0);
+      // Create gradient
+      const gradientWidth = Math.min(currentPosition, stopPosition);
+      const gradient = ctx.createLinearGradient(0, 0, gradientWidth, 0);
 
       gradient.addColorStop(0.0, "#FAE279");
-      gradient.addColorStop(0.05, "#FBEBB0");
       gradient.addColorStop(0.1, "#E9BD49");
-      gradient.addColorStop(0.15, "#FCE57C");
-      gradient.addColorStop(0.2, "#FAE279");
-      gradient.addColorStop(0.25, "#FBEBB0");
-      gradient.addColorStop(0.3, "#E9BD49");
-      gradient.addColorStop(0.35, "#FCE57C");
-      gradient.addColorStop(0.4, "#FAE279");
-      gradient.addColorStop(0.45, "#FBEBB0");
+      gradient.addColorStop(0.2, "#FCE57C");
+      gradient.addColorStop(0.3, "#FAE279");
+      gradient.addColorStop(0.4, "#FBEBB0");
       gradient.addColorStop(0.5, "#E9BD49");
-      gradient.addColorStop(0.55, "#FCE57C");
-      gradient.addColorStop(0.6, "#FAE279");
-      gradient.addColorStop(0.65, "#FBEBB0");
-      gradient.addColorStop(0.7, "#E9BD49");
-      gradient.addColorStop(0.75, "#FCE57C");
-      gradient.addColorStop(0.8, "#FAE279");
-      gradient.addColorStop(0.85, "#FBEBB0");
+      gradient.addColorStop(0.6, "#FCE57C");
+      gradient.addColorStop(0.7, "#FAE279");
+      gradient.addColorStop(0.8, "#FBEBB0");
       gradient.addColorStop(0.9, "#E9BD49");
-      gradient.addColorStop(0.95, "#FCE57C");
-      gradient.addColorStop(1.0, "#FAE279");
+      gradient.addColorStop(1.0, "#FCE57C");
 
-      // Draw line
+      // Adaptive line thickness
+      const lineWidth = Math.max(1.5, blockWidth * 0.03);
       ctx.strokeStyle = gradient;
-      ctx.lineWidth = 3.3;
+      ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
       ctx.beginPath();
 
+      // Draw the line
       dataToShow.forEach((data, i) => {
-        // Рассчитываем позицию точки
-        let x;
+        let x: number;
 
-        if (currentEndPosition >= stopPosition) {
-          // Если достигли точки остановки, сдвигаем все точки влево
+        if (currentPosition >= stopPosition) {
+          // Stopped - shift data to the left
           const offsetFromEnd = dataToShow.length - 1 - i;
           x = stopPosition - offsetFromEnd * pointSpacing;
         } else {
-          // Обычное движение с начала
-          x = startX + i * pointSpacing;
+          // Moving from the start
+          x = i * pointSpacing;
         }
 
-        // Убеждаемся, что точка не выходит за границы
+        // Limit position
         x = Math.max(0, Math.min(x, stopPosition));
 
         const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
@@ -290,9 +289,9 @@ export const Chart: React.FC<ChartProps> = ({
 
       ctx.stroke();
 
-      // Draw last point
+      // Draw the last point
       const lastData = dataToShow[dataToShow.length - 1];
-      const lastX = Math.min(currentEndPosition, stopPosition);
+      const lastX = Math.min(currentPosition, stopPosition);
       const lastNormalizedY =
         (lastData.price - minPrice) / (maxPrice - minPrice);
       const lastY =
@@ -300,43 +299,78 @@ export const Chart: React.FC<ChartProps> = ({
         lastNormalizedY * chartDimensions.height * 0.8 -
         20;
 
+      // Adaptive point sizes
+      const pointRadius = Math.max(2, blockWidth * 0.015);
+      const pointOuterRadius = Math.max(6, blockWidth * 0.03);
+
+      // Outer circle
       ctx.fillStyle = "rgba(252, 229, 124, 0.3)";
       ctx.beginPath();
-      ctx.arc(lastX, lastY, 12, 0, 2 * Math.PI);
+      ctx.arc(lastX, lastY, pointOuterRadius, 0, 2 * Math.PI);
       ctx.fill();
 
+      // Inner circle
       ctx.fillStyle = "#FCE57C";
       ctx.beginPath();
-      ctx.arc(lastX, lastY, 5, 0, 2 * Math.PI);
+      ctx.arc(lastX, lastY, pointRadius, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Price text - позиционируем относительно последней точки
+      // Adaptive price text
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = "bold 14px Arial";
+      const fontSize = Math.max(8, blockWidth * 0.04);
+      ctx.font = `bold ${fontSize}px Arial`;
       const priceText = `${lastData.price.toFixed(2)}`;
       const textWidth = ctx.measureText(priceText).width;
 
-      // Если текст не помещается справа, показываем слева
       const textX =
-        lastX + textWidth + 20 > chartDimensions.width
+        lastX + textWidth + 15 > chartDimensions.width
           ? lastX - textWidth - 10
           : lastX + 10;
 
       ctx.fillText(priceText, textX, lastY);
 
-      // Рисуем вертикальную линию остановки для визуализации (только когда достигли)
-      if (currentEndPosition >= stopPosition) {
-        ctx.strokeStyle = "rgba(252, 229, 124, 0.2)";
+      // Stop line (when reached)
+      if (currentPosition >= stopPosition) {
+        ctx.strokeStyle = "rgba(252, 229, 124, 0.15)";
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([3, 3]);
         ctx.beginPath();
         ctx.moveTo(stopPosition, 0);
         ctx.lineTo(stopPosition, chartDimensions.height);
         ctx.stroke();
-        ctx.setLineDash([]); // Сбрасываем пунктир
+        ctx.setLineDash([]);
+      }
+
+      // Debug block grid
+      if (process.env.NODE_ENV === "development") {
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.1)";
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([1, 1]);
+
+        // Vertical lines
+        for (let i = 1; i <= blockConfig.blocksPerRow; i++) {
+          const x = i * blockWidth;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, chartDimensions.height);
+          ctx.stroke();
+        }
+
+        // Horizontal lines
+        const blockHeight =
+          chartDimensions.height / blockConfig.blocksPerColumn;
+        for (let i = 1; i <= blockConfig.blocksPerColumn; i++) {
+          const y = i * blockHeight;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(chartDimensions.width, y);
+          ctx.stroke();
+        }
+
+        ctx.setLineDash([]);
       }
     } else if (isConnected && !isLoadingWebSocket) {
-      // Waiting for data after loading
+      // Waiting for data
       ctx.fillStyle = "#FF6B6B";
       ctx.fillRect(10, 10, 140, 50);
       ctx.fillStyle = "#FFFFFF";
@@ -368,7 +402,8 @@ export const Chart: React.FC<ChartProps> = ({
     chartDimensions,
     isConnected,
     isLoadingWebSocket,
-    getStopPosition,
+    getActualBlockDimensions,
+    blockConfig,
   ]);
 
   const handleBlockClick = useCallback((blockId: string) => {
@@ -379,7 +414,7 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
-  // Price labels - use filtered data
+  // Price labels
   const priceLabels = React.useMemo(() => {
     if (filteredPriceData.length === 0) return [];
 
@@ -414,13 +449,15 @@ export const Chart: React.FC<ChartProps> = ({
         </div>
 
         <div className={styles.chartContent}>
-          <BlockGrid
-            blocks={blocks}
-            onBlockClick={handleBlockClick}
-            className={styles.blockGrid}
-            blocksPerRow={blockConfig.blocksPerRow}
-            blocksPerColumn={blockConfig.blocksPerColumn}
-          />
+          <div ref={blockGridRef} className={styles.blockGridContainer}>
+            <BlockGrid
+              blocks={blocks}
+              onBlockClick={handleBlockClick}
+              className={styles.blockGrid}
+              blocksPerRow={blockConfig.blocksPerRow}
+              blocksPerColumn={blockConfig.blocksPerColumn}
+            />
+          </div>
           <canvas ref={canvasRef} className={styles.canvas} />
         </div>
       </div>
