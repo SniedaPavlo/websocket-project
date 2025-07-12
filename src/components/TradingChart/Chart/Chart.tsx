@@ -1,24 +1,24 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { PriceData, ChartBlock } from "@/types";
 import { BlockGrid } from "../BlockGrid";
-import { generateBlocksGrid, getMinMaxPrice } from "../../../libs/utils/chartUtils";
+import {
+  generateBlocksGrid,
+  normalizePrice,
+  getMinMaxPrice,
+} from "../../../libs/utils/chartUtils";
 import { useResponsive } from "../../../hooks/useResponsive";
 import { useWebSocketPrice } from "../../../hooks/useWebSocketPrice";
 import styles from "./Chart.module.scss";
 
 interface ChartProps {
-  priceData?: PriceData[];
   feed?: string;
-  useWebSocket?: boolean;
   width?: number;
   height?: number;
   className?: string;
 }
 
 export const Chart: React.FC<ChartProps> = ({
-  priceData: externalPriceData,
   feed = "SOL_USD",
-  useWebSocket = true,
   width = 800,
   height = 400,
   className = "",
@@ -31,53 +31,67 @@ export const Chart: React.FC<ChartProps> = ({
     height: 0,
   });
   const { blockConfig } = useResponsive();
-  const { priceData: webSocketPriceData, isConnected } = useWebSocketPrice({
-    feed,
-    maxDataPoints: 100,
-  });
 
-  const priceData = externalPriceData?.length ? externalPriceData : webSocketPriceData || [];
+  // Get WebSocket data
+  const { priceData, isConnected } = useWebSocketPrice({ feed });
 
+  // Debug
   useEffect(() => {
-    setBlocks(generateBlocksGrid(blockConfig.blocksPerRow, blockConfig.blocksPerColumn));
+    console.log("📊 Chart data:", {
+      priceDataLength: priceData.length,
+      isConnected,
+      lastPrice: priceData[priceData.length - 1],
+    });
+  }, [priceData, isConnected]);
+
+  // Initialize blocks
+  useEffect(() => {
+    const newBlocks = generateBlocksGrid(
+      blockConfig.blocksPerRow,
+      blockConfig.blocksPerColumn
+    );
+    setBlocks(newBlocks);
   }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
+  // Handle container resize
   useEffect(() => {
     const updateDimensions = () => {
-      if (!containerRef.current) return;
-      
-      const rect = containerRef.current.getBoundingClientRect();
-      const newWidth = rect.width || width;
-      const newHeight = rect.height || height;
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const newWidth = rect.width || width;
+        const newHeight = rect.height || height;
 
-      if (newWidth > 0 && newHeight > 0) {
-        setChartDimensions({ width: newWidth, height: newHeight });
+        if (newWidth > 0 && newHeight > 0) {
+          setChartDimensions({ width: newWidth, height: newHeight });
+        }
       }
     };
 
     updateDimensions();
-    
+
     const resizeObserver = new ResizeObserver(updateDimensions);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
 
-    window.addEventListener("resize", updateDimensions);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateDimensions);
-    };
+    return () => resizeObserver.disconnect();
   }, [width, height]);
 
+  // Draw chart
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
 
-    if (!canvas || !ctx || chartDimensions.width === 0 || chartDimensions.height === 0) {
+    if (
+      !canvas ||
+      !ctx ||
+      chartDimensions.width === 0 ||
+      chartDimensions.height === 0
+    ) {
       return;
     }
 
+    // Setup canvas
     const dpr = window.devicePixelRatio || 1;
     canvas.width = chartDimensions.width * dpr;
     canvas.height = chartDimensions.height * dpr;
@@ -85,88 +99,113 @@ export const Chart: React.FC<ChartProps> = ({
     canvas.style.height = `${chartDimensions.height}px`;
     ctx.scale(dpr, dpr);
 
+    // Clear canvas
     ctx.clearRect(0, 0, chartDimensions.width, chartDimensions.height);
 
-    let dataToRender = priceData;
-    if (!dataToRender?.length) {
-      dataToRender = [
-        { timestamp: Date.now() - 10000, price: 180.25 },
-        { timestamp: Date.now() - 8000, price: 181.50 },
-        { timestamp: Date.now() - 6000, price: 179.75 },
-        { timestamp: Date.now() - 4000, price: 182.00 },
-        { timestamp: Date.now() - 2000, price: 183.25 },
-        { timestamp: Date.now(), price: 184.50 },
-      ];
-    }
+    // Draw price line if we have data
+    if (priceData.length > 1) {
+      const { min, max } = getMinMaxPrice(priceData);
+      const padding = (max - min) * 0.1 || 1;
+      const minPrice = min - padding;
+      const maxPrice = max + padding;
 
-    const prices = dataToRender.map(d => d.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const padding = (max - min) * 0.1 || 1;
-    const minPrice = min - padding;
-    const maxPrice = max + padding;
+      const pointSpacing =
+        chartDimensions.width / Math.max(100, priceData.length);
+      const startX = Math.max(
+        0,
+        chartDimensions.width - priceData.length * pointSpacing
+      );
 
-    ctx.strokeStyle = "#00FF00";
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+      // Create gradient with more frequent transitions
+      const gradient = ctx.createLinearGradient(0, 0, chartDimensions.width, 0);
 
-    ctx.beginPath();
-    const pointSpacing = chartDimensions.width / Math.max(1, dataToRender.length - 1);
-    
-    dataToRender.forEach((data, i) => {
-      const x = i * pointSpacing;
-      const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
-      const y = chartDimensions.height - (normalizedY * chartDimensions.height * 0.8) - 20;
-
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-
-    ctx.stroke();
-
-    ctx.fillStyle = "#00FF00";
-    dataToRender.forEach((data, i) => {
-      const x = i * pointSpacing;
-      const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
-      const y = chartDimensions.height - (normalizedY * chartDimensions.height * 0.8) - 20;
+      gradient.addColorStop(0.0, "#FAE279");
+      gradient.addColorStop(0.05, "#FBEBB0");
+      gradient.addColorStop(0.1, "#E9BD49");
+      gradient.addColorStop(0.15, "#FCE57C");
+      gradient.addColorStop(0.2, "#FAE279");
+      gradient.addColorStop(0.25, "#FBEBB0");
+      gradient.addColorStop(0.3, "#E9BD49");
+      gradient.addColorStop(0.35, "#FCE57C");
+      gradient.addColorStop(0.4, "#FAE279");
+      gradient.addColorStop(0.45, "#FBEBB0");
+      gradient.addColorStop(0.5, "#E9BD49");
+      gradient.addColorStop(0.55, "#FCE57C");
+      gradient.addColorStop(0.6, "#FAE279");
+      gradient.addColorStop(0.65, "#FBEBB0");
+      gradient.addColorStop(0.7, "#E9BD49");
+      gradient.addColorStop(0.75, "#FCE57C");
+      gradient.addColorStop(0.8, "#FAE279");
+      gradient.addColorStop(0.85, "#FBEBB0");
+      gradient.addColorStop(0.9, "#E9BD49");
+      gradient.addColorStop(0.95, "#FCE57C");
+      gradient.addColorStop(1.0, "#FAE279");
+      // Draw line
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 3.3;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
       ctx.beginPath();
-      ctx.arc(x, y, 3, 0, 2 * Math.PI);
-      ctx.fill();
-    });
 
-    if (dataToRender.length > 0) {
-      const lastData = dataToRender[dataToRender.length - 1];
-      const lastX = (dataToRender.length - 1) * pointSpacing;
-      const lastNormalizedY = (lastData.price - minPrice) / (maxPrice - minPrice);
-      const lastY = chartDimensions.height - (lastNormalizedY * chartDimensions.height * 0.8) - 20;
+      priceData.forEach((data, i) => {
+        const x = startX + i * pointSpacing;
+        const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
+        const y =
+          chartDimensions.height -
+          normalizedY * chartDimensions.height * 0.8 -
+          20;
 
-      ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+
+      // Draw last point
+      const lastData = priceData[priceData.length - 1];
+      const lastX = startX + (priceData.length - 1) * pointSpacing;
+      const lastNormalizedY =
+        (lastData.price - minPrice) / (maxPrice - minPrice);
+      const lastY =
+        chartDimensions.height -
+        lastNormalizedY * chartDimensions.height * 0.8 -
+        20;
+
+      ctx.fillStyle = "rgba(252, 229, 124, 0.3)";
       ctx.beginPath();
       ctx.arc(lastX, lastY, 12, 0, 2 * Math.PI);
       ctx.fill();
 
-      ctx.fillStyle = "#00FF00";
+      ctx.fillStyle = "#FCE57C";
       ctx.beginPath();
       ctx.arc(lastX, lastY, 5, 0, 2 * Math.PI);
       ctx.fill();
 
+      // Price text
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "bold 14px Arial";
       ctx.fillText(`$${lastData.price.toFixed(2)}`, lastX + 10, lastY);
+    } else {
+      // Waiting for data
+      ctx.fillStyle = "#FF0000";
+      ctx.fillRect(10, 10, 100, 50);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "16px Arial";
+      ctx.fillText("Waiting for data...", 20, 40);
+      ctx.font = "12px Arial";
+      ctx.fillText(`Connected: ${isConnected}`, 20, 70);
     }
 
-    if (useWebSocket) {
-      ctx.font = "12px Arial";
-      ctx.fillStyle = isConnected ? "#13AE5C" : "#FF6B6B";
-      const statusText = isConnected ? "● LIVE" : "● OFFLINE";
-      ctx.fillText(statusText, chartDimensions.width - 60, 20);
-    }
-  }, [priceData, chartDimensions, useWebSocket, isConnected]);
+    // Connection status
+    ctx.font = "12px Arial";
+    ctx.fillStyle = isConnected ? "#FCE57C" : "#FF0000";
+    const statusText = isConnected ? "● LIVE" : "● OFFLINE";
+    ctx.fillText(statusText, chartDimensions.width - 60, 20);
+  }, [priceData, chartDimensions, isConnected]);
 
   const handleBlockClick = useCallback((blockId: string) => {
     setBlocks((prev) =>
@@ -176,8 +215,9 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
+  // Price labels
   const priceLabels = React.useMemo(() => {
-    if (!priceData?.length) return [];
+    if (priceData.length === 0) return [];
 
     const { min, max } = getMinMaxPrice(priceData);
     const padding = (max - min) * 0.1 || 1;
@@ -217,9 +257,7 @@ export const Chart: React.FC<ChartProps> = ({
             blocksPerRow={blockConfig.blocksPerRow}
             blocksPerColumn={blockConfig.blocksPerColumn}
           />
-          <div className={styles.canvasContainer}>
-            <canvas ref={canvasRef} className={styles.canvas} />
-          </div>
+          <canvas ref={canvasRef} className={styles.canvas} />
         </div>
       </div>
     </div>

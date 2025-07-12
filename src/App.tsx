@@ -40,6 +40,7 @@ const App: React.FC = () => {
               <ErrorBoundary>
                 <div className="chart-wrapper">
                   <Chart
+                    //@ts-ignore
                     priceData={priceData}
                     width={chartWidth}
                     height={chartHeight}
