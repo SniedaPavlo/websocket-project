@@ -364,40 +364,6 @@ export const Chart: React.FC<ChartProps> = ({
         ctx.stroke();
         ctx.setLineDash([]);
       }
-
-      // Debug: показать сетку - ОТКЛЮЧЕНО
-      // if (process.env.NODE_ENV === "development") {
-      //   ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
-      //   ctx.lineWidth = 1;
-
-      //   gridCells.forEach((cell, index) => {
-      //     // Рамка ячейки
-      //     ctx.strokeRect(cell.x, cell.y, cell.width, cell.height);
-
-      //     // Центральная точка
-      //     ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-      //     ctx.beginPath();
-      //     ctx.arc(cell.centerX, cell.centerY, 2, 0, 2 * Math.PI);
-      //     ctx.fill();
-
-      //     // Номер ячейки
-      //     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-      //     ctx.font = "10px Arial";
-      //     ctx.fillText(index.toString(), cell.x + 2, cell.y + 12);
-      //   });
-
-      //   // Подсветка ячейки остановки
-      //   if (stopCell) {
-      //     ctx.strokeStyle = "rgba(255, 255, 0, 0.8)";
-      //     ctx.lineWidth = 2;
-      //     ctx.strokeRect(
-      //       stopCell.x,
-      //       stopCell.y,
-      //       stopCell.width,
-      //       stopCell.height
-      //     );
-      //   }
-      // }
     } else if (isConnected && !isLoadingWebSocket) {
       // Waiting for data
       ctx.fillStyle = "#FF6B6B";

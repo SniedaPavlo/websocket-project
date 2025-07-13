@@ -1,10 +1,13 @@
 import React from "react";
-import { Chart } from "./components/TradingChart/Chart";
-import { PriceDisplay } from "./components/TradingChart/PriceDisplay";
+import { Chart } from "./components/GameChart/Chart";
+import { PriceDisplay } from "./components/GameChart/PriceDisplay";
 import { ApiTester } from "./components/ApiTester";
 import { useResponsive } from "./hooks/useResponsive";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./App.scss";
+
+import { FullIcon } from "./components/Icons/Full";
+import { CancelIcon } from "./components/Icons/Cancel";
 
 const App: React.FC = () => {
   // Mock data - no actual price requests
@@ -20,6 +23,8 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
+      <FullIcon />
+      <CancelIcon />
       <ApiTester />
       <div className="app-container">
         <header className="header">

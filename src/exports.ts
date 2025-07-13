@@ -1,7 +1,7 @@
 // Main components
-export { Chart } from "./components/TradingChart/Chart";
-export { PriceDisplay } from "./components/TradingChart/PriceDisplay";
-export { BlockGrid } from "./components/TradingChart/BlockGrid";
+export { Chart } from "./components/GameChart/Chart";
+export { PriceDisplay } from "./components/GameChart/PriceDisplay";
+export { BlockGrid } from "./components/GameChart/BlockGrid";
 
 // Hooks
 export { useResponsive } from "./hooks/useResponsive";

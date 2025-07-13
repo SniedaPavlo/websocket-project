@@ -42,19 +42,19 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
   // Updated config with stop points
   const defaultConfig: ResponsiveConfig = {
     mobile: {
-      blocksPerRow: 7,
+      blocksPerRow: 4,
       blocksPerColumn: 4,
-      stopAtBlock: 5, // Stop at 5th block (out of 7)
+      stopAtBlock: 4,
     },
     tablet: {
-      blocksPerRow: 7,
+      blocksPerRow: 6,
       blocksPerColumn: 4,
-      stopAtBlock: 5, // Stop at 5th block (out of 7)
+      stopAtBlock: 4,
     },
     desktop: {
-      blocksPerRow: 10,
+      blocksPerRow: 8,
       blocksPerColumn: 4,
-      stopAtBlock: 7, // Stop at 7th block (out of 10)
+      stopAtBlock: 7,
     },
   };
 
