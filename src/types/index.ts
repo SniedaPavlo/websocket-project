@@ -21,5 +21,22 @@ export interface ChartBlock {
   status?: "loading" | "canPlusBet";
 }
 
+export interface GridCell {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+}
+
+export interface GridConfig {
+  cellWidth: number;
+  cellHeight: number;
+  gap: number;
+  cols: number;
+  rows: number;
+}
+
 // Re-export config types
 export type { HTTPConfig, ChartConfig, SolPriceChartConfig } from "./config";

@@ -1,24 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChartBlock } from "../../../types";
+import { ChartBlock, GridCell, GridConfig } from "../../../types";
 import { Block } from "./Block/Block";
 import styles from "./BlockGrid.module.scss";
 
-interface GridCell {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  centerX: number;
-  centerY: number;
-}
-
-interface GridConfig {
-  cellWidth: number;
-  cellHeight: number;
-  gap: number;
-  cols: number;
-  rows: number;
-}
 
 interface BlockGridProps {
   blocks: ChartBlock[];

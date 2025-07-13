@@ -8,15 +8,15 @@
   border-radius: $border-radius-md;
   overflow: hidden;
 
-  // Ensure minimum size for readability
+  // Minimum size for readability
   min-width: 200px;
   min-height: 200px;
 
-  // Improve performance
+  // Performance improvement
   contain: layout style paint;
   will-change: contents;
 
-  // Ensure correct display in flex containers
+  // Correct display in flex containers
   flex-shrink: 0;
   box-sizing: border-box;
 }
@@ -26,7 +26,7 @@
   width: 100%;
   height: 100%;
 
-  // Ensure wrapper takes all available height
+  // Wrapper takes all available height
   min-height: 100%;
 }
 
@@ -39,7 +39,7 @@
   padding: 10px 5px;
   background-color: #1a1a1a;
 
-  // Ensure full height
+  // Full height
   height: 100%;
 
   // Prevent shrinking
@@ -57,7 +57,7 @@
   text-align: right;
   line-height: 1.2;
 
-  // Ensure readability on small screens
+  // Readability on small screens
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -69,7 +69,7 @@
   display: flex;
   flex-direction: column;
 
-  // Ensure full fill of remaining space
+  // Fill remaining space
   width: 0; // Important for correct flex behavior
   height: 100%;
 
@@ -81,40 +81,6 @@
   min-height: 0;
 }
 
-.canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 100;
-  pointer-events: none;
-
-  // Critically important: absolutely precise match
-  margin: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-
-  // Exact positioning
-  box-sizing: border-box;
-
-  // Rendering quality
-  image-rendering: crisp-edges;
-
-  // Performance
-  will-change: transform;
-  backface-visibility: hidden;
-
-  // Visibility
-  opacity: 1;
-  visibility: visible;
-
-  // Remove any distortions
-  transform: none;
-  filter: none;
-}
-
 // Container for blocks with absolutely precise positioning
 .blockGridContainer {
   position: absolute;
@@ -124,7 +90,7 @@
   height: 100%;
   z-index: 1;
 
-  // Critically important: no margins, borders, transforms
+  // No margins, borders, transforms
   margin: 0;
   padding: 0;
   border: 0;
@@ -149,7 +115,7 @@
   height: 100%;
   z-index: 1;
 
-  // Critically important: full match with canvas
+  // Full match with canvas
   margin: 0;
   padding: 0;
   border: 0;
@@ -236,27 +202,10 @@
   }
 }
 
-// For high resolutions
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .canvas {
-    // Ensure crisp rendering on retina displays
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: optimize-contrast;
-  }
-}
-
 // Optimization for devices with limited resources
 @media (prefers-reduced-motion: reduce) {
   .chart {
     will-change: auto;
-  }
-
-  .canvas {
-    will-change: auto;
-  }
-
-  .block {
-    transition: none;
   }
 }
 

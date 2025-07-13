@@ -17,13 +17,12 @@ export const useWebSocketPrice = ({
   const wsClientRef = useRef<any>(null);
 
   useEffect(() => {
-
     const connectWebSocket = async () => {
       try {
         const client = new BananaZoneClient();
         const wsClient = client.websocket.createConnection({
           feed,
-          from: Math.floor(Date.now() / 1000) - 60,
+          from: Math.floor(Date.now() / 1000),
         });
 
         wsClientRef.current = wsClient;
@@ -40,8 +39,8 @@ export const useWebSocketPrice = ({
 
             setPriceData((prev) => {
               const updated = [...prev, newPoint];
-              return updated.length > maxDataPoints 
-                ? updated.slice(-maxDataPoints) 
+              return updated.length > maxDataPoints
+                ? updated.slice(-maxDataPoints)
                 : updated;
             });
           }

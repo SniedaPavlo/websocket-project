@@ -1,0 +1,49 @@
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  pointer-events: none;
+
+  // Critically important: absolutely precise match
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+
+  // Exact positioning
+  box-sizing: border-box;
+
+  // Rendering quality
+  image-rendering: crisp-edges;
+
+  // Performance
+  will-change: transform;
+  backface-visibility: hidden;
+
+  // Visibility
+  opacity: 1;
+  visibility: visible;
+
+  // Remove any distortions
+  transform: none;
+  filter: none;
+}
+
+// For high resolutions
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .canvas {
+    // Ensure crisp rendering on retina displays
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+  }
+}
+
+// Optimization for devices with limited resources
+@media (prefers-reduced-motion: reduce) {
+  .canvas {
+    will-change: auto;
+  }
+}

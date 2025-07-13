@@ -45,11 +45,9 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
               <LoadingIcon />
             )}
             {block.status === "canPlusBet" && (
-              // Plus button
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevent block click
-                  // Handle plus button click here
+                  e.stopPropagation();
                   console.log("Plus button clicked for block:", block.id);
                 }}
                 aria-label="Add bet"

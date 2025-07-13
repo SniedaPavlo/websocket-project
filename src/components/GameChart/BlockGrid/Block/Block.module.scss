@@ -2,10 +2,10 @@
 @use "sass:color";
 
 .block {
-  --text-scale: 1;
-  --base-top-right-size: 0.8rem;
-  --base-main-size: 2rem;
-  --base-sub-size: 0.9rem; /* 0.7 * 1.1 */
+  --text-scale: 1.07;
+  --base-top-right-size: 0.856rem; // 0.8 * 1.07
+  --base-main-size: 2.14rem; // 2 * 1.07
+  --base-sub-size: 0.963rem; /* 0.9 * 1.07 */
   background-color: $block-color;
   border-radius: $border-radius-sm;
   border: 1px solid $border-color;
@@ -137,7 +137,7 @@
 // Responsive styles for different screen sizes
 @media (max-width: $tablet) {
   .block {
-    --text-scale: 0.85; // Decrease by 15%
+    --text-scale: 0.9095; // 0.85 * 1.07, Увеличено на 7%
     border-width: 0.75px;
     transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -153,9 +153,11 @@
 
 @media (max-width: $mobile) {
   .block {
-    --text-scale: 0.7; // Decrease by 30%
+    --text-scale: 0.749; // 0.7 * 1.07, Увеличено на 7%
     border-width: 0.5px;
     transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    // Уменьшаем паддинги на 70%
+    padding: 3px 3px;
 
     &:hover {
       transform: translateZ(0) scale(1.1);
@@ -170,9 +172,11 @@
 // For very small screens
 @media (max-width: 320px) {
   .block {
-    --text-scale: 0.55; // Decrease by 45%
+    --text-scale: 0.5885; // 0.55 * 1.07, Увеличено на 7%
     border-width: 0.25px;
     transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+    // Уменьшаем паддинги на 70%
+    padding: 3px 3px;
 
     &:hover {
       transform: translateZ(0) scale(1.15);
