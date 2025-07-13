@@ -24,6 +24,30 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
   const showStatusContent =
     block.status === "loading" || block.status === "canPlusBet";
 
+  // Render bananas based on count
+  const renderBananas = () => {
+    if (!block.bananas || block.bananas === 0) return null;
+
+    if (block.bananas <= 3) {
+      // Show individual banana icons for 3 or fewer
+      return (
+        <div className={styles.bananas}>
+          {Array.from({ length: block.bananas }).map((_, i) => (
+            <BananaIcon key={i} />
+          ))}
+        </div>
+      );
+    } else {
+      // Show single banana icon with multiplier for more than 3
+      return (
+        <div className={styles.bananasWithMultiplier}>
+          <BananaIcon />
+          <span className={styles.multiplier}>x{block.bananas}</span>
+        </div>
+      );
+    }
+  };
+
   return (
     <div
       className={`${styles.block} ${block.isActive ? styles.active : ""} ${
@@ -60,17 +84,7 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
           // Show regular content when no status
           <>
             <div className={styles.headerWrapper}>
-              <div className={styles.topLeft}>
-                {block.bananas && (
-                  <div className={styles.bananas}>
-                    {Array.from({ length: Math.min(block.bananas, 6) }).map(
-                      (_, i) => (
-                        <BananaIcon key={i} />
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
+              <div className={styles.topLeft}>{renderBananas()}</div>
               {block.potValue && (
                 <div className={styles.topRight}>{block.potValue}</div>
               )}

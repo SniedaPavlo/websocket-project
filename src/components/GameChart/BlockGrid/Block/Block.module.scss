@@ -82,6 +82,21 @@
       margin-left: -7px;
     }
   }
+
+  .bananasWithMultiplier {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    .multiplier {
+      font-family: "Instrument Serif", serif;
+      font-weight: 400;
+      font-size: calc(var(--base-sub-size) * var(--text-scale) * 0.9);
+      color: $text-color;
+      white-space: nowrap;
+      line-height: 1;
+    }
+  }
 }
 
 .topRight {
@@ -149,6 +164,16 @@
       transform: translateZ(0) scale(1.12);
     }
   }
+
+  .topLeft {
+    .bananasWithMultiplier {
+      gap: 1px;
+
+      .multiplier {
+        font-size: calc(var(--base-sub-size) * var(--text-scale) * 0.85);
+      }
+    }
+  }
 }
 
 @media (max-width: $mobile) {
@@ -165,6 +190,16 @@
 
     &.active {
       transform: translateZ(0) scale(1.15);
+    }
+  }
+
+  .topLeft {
+    .bananasWithMultiplier {
+      gap: 1px;
+
+      .multiplier {
+        font-size: calc(var(--base-sub-size) * var(--text-scale) * 0.8);
+      }
     }
   }
 }
@@ -184,6 +219,16 @@
 
     &.active {
       transform: translateZ(0) scale(1.2);
+    }
+  }
+
+  .topLeft {
+    .bananasWithMultiplier {
+      gap: 1px;
+
+      .multiplier {
+        font-size: calc(var(--base-sub-size) * var(--text-scale) * 0.75);
+      }
     }
   }
 }
