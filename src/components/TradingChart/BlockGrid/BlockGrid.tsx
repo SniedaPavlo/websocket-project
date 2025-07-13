@@ -3,6 +3,23 @@ import { ChartBlock } from "../../../types";
 import { Block } from "./Block/Block";
 import styles from "./BlockGrid.module.scss";
 
+interface GridCell {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+}
+
+interface GridConfig {
+  cellWidth: number;
+  cellHeight: number;
+  gap: number;
+  cols: number;
+  rows: number;
+}
+
 interface BlockGridProps {
   blocks: ChartBlock[];
   onBlockClick: (blockId: string) => void;
@@ -11,6 +28,8 @@ interface BlockGridProps {
   blocksPerColumn?: number;
   containerWidth?: number;
   containerHeight?: number;
+  gridCells?: GridCell[];
+  gridConfig?: GridConfig;
 }
 
 export const BlockGrid: React.FC<BlockGridProps> = ({
@@ -21,6 +40,8 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
   blocksPerColumn = 8,
   containerWidth,
   containerHeight,
+  gridCells,
+  gridConfig,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({
@@ -35,6 +56,9 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     },
     [onBlockClick]
   );
+
+  // Use unified grid if provided, otherwise fallback to original logic
+  const useUnifiedGrid = gridCells && gridConfig && gridCells.length > 0;
 
   // Update container dimensions
   useEffect(() => {
@@ -65,33 +89,84 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     }
   }, [containerWidth, containerHeight]);
 
-  // Calculate block size based on container dimensions
+  // Calculate block size based on container dimensions (fallback)
   useEffect(() => {
+    if (useUnifiedGrid) {
+      setBlockSize(gridConfig!.cellWidth);
+      return;
+    }
+
     if (!containerDimensions.width || !containerDimensions.height) {
       return;
     }
 
     const gap = Math.max(1, Math.min(4, containerDimensions.width / 200));
-
-    // Calculate available space for blocks
     const availableWidth = containerDimensions.width - gap * (blocksPerRow - 1);
     const availableHeight =
       containerDimensions.height - gap * (blocksPerColumn - 1);
 
-    // Calculate max block size by width and height
-    const maxBlockWidth = availableWidth / blocksPerRow;
-    const maxBlockHeight = availableHeight / blocksPerColumn;
+    // Используем точные размеры для заполнения пространства
+    const blockWidth = availableWidth / blocksPerRow;
+    const blockHeight = availableHeight / blocksPerColumn;
 
-    // Choose the smallest size to ensure blocks fit
-    const calculatedSize = Math.min(maxBlockWidth, maxBlockHeight);
+    // Для сохранения пропорций можно использовать минимальное значение
+    // но это опционально - можно использовать прямоугольные блоки
+    const useSquareBlocks = true; // можно сделать это настройкой
+    const calculatedSize = useSquareBlocks
+      ? Math.min(blockWidth, blockHeight)
+      : blockWidth; // или можно передавать оба размера
 
-    // Apply minimum size constraint
-    const minSize = Math.max(4, Math.min(8, containerDimensions.width / 100));
-    const finalSize = Math.max(minSize, calculatedSize);
+    setBlockSize(calculatedSize);
+  }, [
+    containerDimensions,
+    blocksPerRow,
+    blocksPerColumn,
+    useUnifiedGrid,
+    gridConfig,
+  ]);
 
-    setBlockSize(finalSize);
-  }, [containerDimensions, blocksPerRow, blocksPerColumn]);
+  if (useUnifiedGrid) {
+    // Use unified grid positioning
+    return (
+      <div
+        ref={containerRef}
+        className={`${styles.blockGrid} ${className}`}
+        style={{
+          position: "relative",
+          width: containerWidth ? `${containerWidth}px` : "100%",
+          height: containerHeight ? `${containerHeight}px` : "100%",
+        }}
+      >
+        {blocks.map((block, index) => {
+          const cell = gridCells![index];
+          if (!cell) return null;
 
+          return (
+            <div
+              key={block.id}
+              style={{
+                position: "absolute",
+                left: `${cell.x}px`,
+                top: `${cell.y}px`,
+                width: `${cell.width}px`,
+                height: `${cell.height}px`,
+              }}
+            >
+              <Block
+                block={block}
+                onClick={handleBlockClick}
+                size={Math.min(cell.width, cell.height)}
+                width={cell.width}
+                height={cell.height}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Fallback to original CSS Grid
   const gridGap = Math.max(1, Math.min(4, containerDimensions.width / 200));
 
   return (

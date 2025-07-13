@@ -81,6 +81,40 @@
   min-height: 0;
 }
 
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  pointer-events: none;
+
+  // Critically important: absolutely precise match
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+
+  // Exact positioning
+  box-sizing: border-box;
+
+  // Rendering quality
+  image-rendering: crisp-edges;
+
+  // Performance
+  will-change: transform;
+  backface-visibility: hidden;
+
+  // Visibility
+  opacity: 1;
+  visibility: visible;
+
+  // Remove any distortions
+  transform: none;
+  filter: none;
+}
+
 // Container for blocks with absolutely precise positioning
 .blockGridContainer {
   position: absolute;
@@ -134,40 +168,6 @@
   row-gap: 0;
 }
 
-.canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 100;
-  pointer-events: none;
-
-  // Critically important: absolutely precise match with blocks
-  margin: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-
-  // Exact positioning
-  box-sizing: border-box;
-
-  // Rendering quality
-  image-rendering: crisp-edges;
-
-  // Performance
-  will-change: transform;
-  backface-visibility: hidden;
-
-  // Visibility
-  opacity: 1;
-  visibility: visible;
-
-  // Remove any distortions
-  transform: none;
-  filter: none;
-}
-
 // Adaptive styles for tablets
 @media (max-width: $tablet) {
   .chart {
@@ -186,15 +186,8 @@
     font-size: clamp(9px, 1.2vw, 11px);
   }
 
-  // Reduce margins for better alignment
   .chartContent {
-    margin: 0px; // Remove all margins for precise synchronization
-  }
-
-  .blockGridContainer {
-    // Remove any margins on small screens
-    margin: 0;
-    padding: 0;
+    margin: 1px;
   }
 }
 
@@ -239,12 +232,7 @@
   }
 
   .chartContent {
-    margin: 0px; // Completely remove margins
-  }
-
-  .blockGridContainer {
-    margin: 0;
-    padding: 0;
+    margin: 0px;
   }
 }
 
@@ -266,6 +254,10 @@
   .canvas {
     will-change: auto;
   }
+
+  .block {
+    transition: none;
+  }
 }
 
 // Container queries for more precise adaptation
@@ -282,11 +274,6 @@
   .chartContent {
     margin: 0px;
   }
-
-  .blockGridContainer {
-    margin: 0;
-    padding: 0;
-  }
 }
 
 @container (max-width: 200px) {
@@ -302,10 +289,5 @@
 
   .chartContent {
     margin: 0px;
-  }
-
-  .blockGridContainer {
-    margin: 0;
-    padding: 0;
   }
 }

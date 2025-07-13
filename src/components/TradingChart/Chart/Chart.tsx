@@ -3,7 +3,6 @@ import { PriceData, ChartBlock } from "@/types";
 import { BlockGrid } from "../BlockGrid";
 import {
   generateBlocksGrid,
-  normalizePrice,
   getMinMaxPrice,
 } from "../../../libs/utils/chartUtils";
 import { useResponsive } from "../../../hooks/useResponsive";
@@ -17,6 +16,16 @@ interface ChartProps {
   className?: string;
 }
 
+// Единая сетка для блоков и линии
+interface GridCell {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+}
+
 export const Chart: React.FC<ChartProps> = ({
   feed = "SOL_USD",
   width = 800,
@@ -25,12 +34,24 @@ export const Chart: React.FC<ChartProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const blockGridRef = useRef<HTMLDivElement>(null);
+  const chartContentRef = useRef<HTMLDivElement>(null);
+
   const [blocks, setBlocks] = useState<ChartBlock[]>([]);
   const [chartDimensions, setChartDimensions] = useState({
     width: 0,
     height: 0,
   });
+
+  // Единая сетка для блоков и линии
+  const [gridCells, setGridCells] = useState<GridCell[]>([]);
+  const [gridConfig, setGridConfig] = useState({
+    cellWidth: 0,
+    cellHeight: 0,
+    gap: 0,
+    cols: 0,
+    rows: 0,
+  });
+
   const { blockConfig } = useResponsive();
 
   // WebSocket data fetching
@@ -43,39 +64,58 @@ export const Chart: React.FC<ChartProps> = ({
     null
   );
 
-  // Function to get the exact block dimensions from the DOM
-  const getActualBlockDimensions = useCallback(() => {
-    if (
-      !blockGridRef.current ||
-      chartDimensions.width === 0 ||
-      chartDimensions.height === 0
-    ) {
-      return {
-        blockWidth: 0,
-        blockHeight: 0,
-        stopPosition: 0,
-        totalWidth: chartDimensions.width,
-        totalHeight: chartDimensions.height,
-      };
+  // Вычисление единой сетки
+  const calculateGrid = useCallback(() => {
+    if (chartDimensions.width === 0 || chartDimensions.height === 0) return;
+
+    const cols = blockConfig.blocksPerRow;
+    const rows = blockConfig.blocksPerColumn;
+
+    // Вычисляем gap точно так же как в оригинальном BlockGrid
+    const gap = Math.max(1, Math.min(4, chartDimensions.width / 200));
+
+    // Доступное пространство для ячеек
+    const availableWidth = chartDimensions.width - gap * (cols - 1);
+    const availableHeight = chartDimensions.height - gap * (rows - 1);
+
+    // Размер ячеек - используем точно доступное пространство
+    const cellWidth = availableWidth / cols;
+    const cellHeight = availableHeight / rows;
+
+    // Создаем массив ячеек сетки с точным позиционированием
+    const cells: GridCell[] = [];
+
+    // Рассчитываем начальные отступы для центрирования сетки
+    const totalGridWidth = cols * cellWidth + (cols - 1) * gap;
+    const totalGridHeight = rows * cellHeight + (rows - 1) * gap;
+    const offsetX = (chartDimensions.width - totalGridWidth) / 2;
+    const offsetY = (chartDimensions.height - totalGridHeight) / 2;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = offsetX + col * (cellWidth + gap);
+        const y = offsetY + row * (cellHeight + gap);
+
+        cells.push({
+          x,
+          y,
+          width: cellWidth,
+          height: cellHeight,
+          centerX: x + cellWidth / 2,
+          centerY: y + cellHeight / 2,
+        });
+      }
     }
 
-    // Get exact sizes from the DOM
-    const containerRect = blockGridRef.current.getBoundingClientRect();
-    const actualWidth = containerRect.width;
-    const actualHeight = containerRect.height;
-
-    const blockWidth = actualWidth / blockConfig.blocksPerRow;
-    const blockHeight = actualHeight / blockConfig.blocksPerColumn;
-    const stopPosition = blockWidth * blockConfig.stopAtBlock;
-
-    return {
-      blockWidth,
-      blockHeight,
-      stopPosition,
-      totalWidth: actualWidth,
-      totalHeight: actualHeight,
-    };
-  }, [chartDimensions, blockConfig, blockGridRef]);
+    setGridCells(cells);
+    setGridConfig({
+      cellWidth,
+      cellHeight,
+      gap,
+      cols,
+      rows,
+    });
+  }, [chartDimensions, blockConfig]);
 
   // WebSocket loading function
   const LoadingWebSocket = useCallback(() => {
@@ -107,7 +147,6 @@ export const Chart: React.FC<ChartProps> = ({
         const dataTime = data.timestamp || Date.now();
         return dataTime > webSocketStartTime + 2000;
       });
-
       setFilteredPriceData(acceptableData);
     } else {
       setFilteredPriceData([]);
@@ -133,13 +172,13 @@ export const Chart: React.FC<ChartProps> = ({
     setBlocks(newBlocks);
   }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
-  // Handle container resize
+  // Handle container resize and calculate grid
   useEffect(() => {
     const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const newWidth = rect.width || width;
-        const newHeight = rect.height || height;
+      if (chartContentRef.current) {
+        const rect = chartContentRef.current.getBoundingClientRect();
+        const newWidth = rect.width;
+        const newHeight = rect.height;
 
         if (newWidth > 0 && newHeight > 0) {
           setChartDimensions({ width: newWidth, height: newHeight });
@@ -149,24 +188,24 @@ export const Chart: React.FC<ChartProps> = ({
 
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
+    if (chartContentRef.current) {
+      resizeObserver.observe(chartContentRef.current);
     }
 
     return () => resizeObserver.disconnect();
-  }, [width, height]);
+  }, []);
 
-  // Chart drawing with perfect block synchronization
+  // Пересчитываем сетку при изменении размеров
+  useEffect(() => {
+    calculateGrid();
+  }, [calculateGrid]);
+
+  // Chart drawing using unified grid
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
 
-    if (
-      !canvas ||
-      !ctx ||
-      chartDimensions.width === 0 ||
-      chartDimensions.height === 0
-    ) {
+    if (!canvas || !ctx || gridCells.length === 0) {
       return;
     }
 
@@ -196,47 +235,27 @@ export const Chart: React.FC<ChartProps> = ({
       return;
     }
 
-    // Draw price line if data available
+    // Draw price line using unified grid
     if (filteredPriceData.length > 1) {
       const { min, max } = getMinMaxPrice(filteredPriceData);
       const padding = (max - min) * 0.1 || 1;
       const minPrice = min - padding;
       const maxPrice = max + padding;
 
-      // Get the exact block sizes
-      const blockDims = getActualBlockDimensions();
-      const { blockWidth, stopPosition } = blockDims;
+      // Позиция остановки из сетки
+      const stopAtCellIndex = blockConfig.stopAtBlock - 1; // 0-based
+      const stopCell = gridCells[stopAtCellIndex];
+      const stopPosition = stopCell ? stopCell.centerX : 0;
 
-      if (blockWidth === 0 || stopPosition === 0) {
-        return; // Wait for correct initialization
-      }
-
-      // Adaptive distance between points
-      let pointSpacing: number;
-      if (blockConfig.blocksPerRow <= 7) {
-        // Mobile/tablet - more frequent points
-        pointSpacing = blockWidth / 6;
-      } else {
-        // Desktop - less frequent points
-        pointSpacing = blockWidth / 4;
-      }
-
-      // Calculate the current movement position
-      const currentPosition = Math.min(
-        (filteredPriceData.length - 1) * pointSpacing,
-        stopPosition
+      // Максимальное количество точек до остановки
+      const maxPointsBeforeStop = Math.min(
+        stopAtCellIndex + 1,
+        filteredPriceData.length
       );
-
-      // Determine the number of points to display
-      const maxPoints = Math.floor(stopPosition / pointSpacing) + 1;
-      const dataToShow = filteredPriceData.slice(
-        -Math.min(filteredPriceData.length, maxPoints)
-      );
+      const dataToShow = filteredPriceData.slice(-maxPointsBeforeStop);
 
       // Create gradient
-      const gradientWidth = Math.min(currentPosition, stopPosition);
-      const gradient = ctx.createLinearGradient(0, 0, gradientWidth, 0);
-
+      const gradient = ctx.createLinearGradient(0, 0, stopPosition, 0);
       gradient.addColorStop(0.0, "#FAE279");
       gradient.addColorStop(0.1, "#E9BD49");
       gradient.addColorStop(0.2, "#FCE57C");
@@ -249,8 +268,8 @@ export const Chart: React.FC<ChartProps> = ({
       gradient.addColorStop(0.9, "#E9BD49");
       gradient.addColorStop(1.0, "#FCE57C");
 
-      // Adaptive line thickness
-      const lineWidth = Math.max(1.5, blockWidth * 0.03);
+      // Размеры пропорциональны размеру ячейки
+      const lineWidth = Math.max(1.5, gridConfig.cellWidth * 0.08);
       ctx.strokeStyle = gradient;
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
@@ -258,22 +277,28 @@ export const Chart: React.FC<ChartProps> = ({
 
       ctx.beginPath();
 
-      // Draw the line
-      dataToShow.forEach((data, i) => {
-        let x: number;
+      let lastX = 0;
+      let lastY = 0;
 
-        if (currentPosition >= stopPosition) {
-          // Stopped - shift data to the left
-          const offsetFromEnd = dataToShow.length - 1 - i;
-          x = stopPosition - offsetFromEnd * pointSpacing;
+      // Рисуем линию точно по центрам ячеек сетки
+      dataToShow.forEach((data, i) => {
+        let cellIndex: number;
+
+        // Определяем индекс ячейки
+        if (filteredPriceData.length > stopAtCellIndex + 1) {
+          // Линия достигла остановки - сдвигаем данные влево
+          cellIndex = stopAtCellIndex - (dataToShow.length - 1 - i);
         } else {
-          // Moving from the start
-          x = i * pointSpacing;
+          // Линия еще движется
+          cellIndex = i;
         }
 
-        // Limit position
-        x = Math.max(0, Math.min(x, stopPosition));
+        if (cellIndex < 0 || cellIndex >= gridCells.length) return;
 
+        const cell = gridCells[cellIndex];
+        const x = cell.centerX;
+
+        // Y координата на основе цены
         const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
         const y =
           chartDimensions.height -
@@ -285,39 +310,33 @@ export const Chart: React.FC<ChartProps> = ({
         } else {
           ctx.lineTo(x, y);
         }
+
+        lastX = x;
+        lastY = y;
       });
 
       ctx.stroke();
 
-      // Draw the last point
-      const lastData = dataToShow[dataToShow.length - 1];
-      const lastX = Math.min(currentPosition, stopPosition);
-      const lastNormalizedY =
-        (lastData.price - minPrice) / (maxPrice - minPrice);
-      const lastY =
-        chartDimensions.height -
-        lastNormalizedY * chartDimensions.height * 0.8 -
-        20;
+      // Рисуем последнюю точку
+      const pointRadius = Math.max(2, gridConfig.cellWidth * 0.1);
+      const pointOuterRadius = Math.max(6, gridConfig.cellWidth * 0.2);
 
-      // Adaptive point sizes
-      const pointRadius = Math.max(2, blockWidth * 0.015);
-      const pointOuterRadius = Math.max(6, blockWidth * 0.03);
-
-      // Outer circle
+      // Внешний круг
       ctx.fillStyle = "rgba(252, 229, 124, 0.3)";
       ctx.beginPath();
       ctx.arc(lastX, lastY, pointOuterRadius, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Inner circle
+      // Внутренний круг
       ctx.fillStyle = "#FCE57C";
       ctx.beginPath();
       ctx.arc(lastX, lastY, pointRadius, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Adaptive price text
+      // Текст цены
+      const lastData = dataToShow[dataToShow.length - 1];
       ctx.fillStyle = "#FFFFFF";
-      const fontSize = Math.max(8, blockWidth * 0.04);
+      const fontSize = Math.max(8, gridConfig.cellWidth * 0.25);
       ctx.font = `bold ${fontSize}px Arial`;
       const priceText = `${lastData.price.toFixed(2)}`;
       const textWidth = ctx.measureText(priceText).width;
@@ -329,8 +348,8 @@ export const Chart: React.FC<ChartProps> = ({
 
       ctx.fillText(priceText, textX, lastY);
 
-      // Stop line (when reached)
-      if (currentPosition >= stopPosition) {
+      // Линия остановки
+      if (filteredPriceData.length > stopAtCellIndex + 1) {
         ctx.strokeStyle = "rgba(252, 229, 124, 0.15)";
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
@@ -341,33 +360,38 @@ export const Chart: React.FC<ChartProps> = ({
         ctx.setLineDash([]);
       }
 
-      // Debug block grid
+      // Debug: показать сетку
       if (process.env.NODE_ENV === "development") {
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.1)";
-        ctx.lineWidth = 0.5;
-        ctx.setLineDash([1, 1]);
+        ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
+        ctx.lineWidth = 1;
 
-        // Vertical lines
-        for (let i = 1; i <= blockConfig.blocksPerRow; i++) {
-          const x = i * blockWidth;
+        gridCells.forEach((cell, index) => {
+          // Рамка ячейки
+          ctx.strokeRect(cell.x, cell.y, cell.width, cell.height);
+
+          // Центральная точка
+          ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
           ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, chartDimensions.height);
-          ctx.stroke();
-        }
+          ctx.arc(cell.centerX, cell.centerY, 2, 0, 2 * Math.PI);
+          ctx.fill();
 
-        // Horizontal lines
-        const blockHeight =
-          chartDimensions.height / blockConfig.blocksPerColumn;
-        for (let i = 1; i <= blockConfig.blocksPerColumn; i++) {
-          const y = i * blockHeight;
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(chartDimensions.width, y);
-          ctx.stroke();
-        }
+          // Номер ячейки
+          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+          ctx.font = "10px Arial";
+          ctx.fillText(index.toString(), cell.x + 2, cell.y + 12);
+        });
 
-        ctx.setLineDash([]);
+        // Подсветка ячейки остановки
+        if (stopCell) {
+          ctx.strokeStyle = "rgba(255, 255, 0, 0.8)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(
+            stopCell.x,
+            stopCell.y,
+            stopCell.width,
+            stopCell.height
+          );
+        }
       }
     } else if (isConnected && !isLoadingWebSocket) {
       // Waiting for data
@@ -402,7 +426,8 @@ export const Chart: React.FC<ChartProps> = ({
     chartDimensions,
     isConnected,
     isLoadingWebSocket,
-    getActualBlockDimensions,
+    gridCells,
+    gridConfig,
     blockConfig,
   ]);
 
@@ -448,16 +473,18 @@ export const Chart: React.FC<ChartProps> = ({
           ))}
         </div>
 
-        <div className={styles.chartContent}>
-          <div ref={blockGridRef} className={styles.blockGridContainer}>
-            <BlockGrid
-              blocks={blocks}
-              onBlockClick={handleBlockClick}
-              className={styles.blockGrid}
-              blocksPerRow={blockConfig.blocksPerRow}
-              blocksPerColumn={blockConfig.blocksPerColumn}
-            />
-          </div>
+        <div ref={chartContentRef} className={styles.chartContent}>
+          <BlockGrid
+            blocks={blocks}
+            onBlockClick={handleBlockClick}
+            className={styles.blockGrid}
+            blocksPerRow={blockConfig.blocksPerRow}
+            blocksPerColumn={blockConfig.blocksPerColumn}
+            containerWidth={chartDimensions.width}
+            containerHeight={chartDimensions.height}
+            gridCells={gridCells}
+            gridConfig={gridConfig}
+          />
           <canvas ref={canvasRef} className={styles.canvas} />
         </div>
       </div>

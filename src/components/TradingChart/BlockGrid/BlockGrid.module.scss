@@ -2,10 +2,13 @@
 
 .blockGrid {
   display: grid;
-  place-content: center;
   width: 100%;
   height: 100%;
   overflow: hidden;
+
+  // Центрирование содержимого, если блоки квадратные
+  align-content: center;
+  justify-content: center;
 
   // Ensure the container fully fills the available space
   min-width: 0;

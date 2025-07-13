@@ -2,10 +2,9 @@
 @use "sass:color";
 
 .block {
-  // CSS custom properties for text scaling
   --text-scale: 1;
   --base-top-right-size: 0.8rem;
-  --base-main-size: 2rem; /* 1.8 * 1.1 */
+  --base-main-size: 2rem;
   --base-sub-size: 0.9rem; /* 0.7 * 1.1 */
   background-color: $block-color;
   border-radius: $border-radius-sm;
