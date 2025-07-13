@@ -64,7 +64,7 @@ export const Chart: React.FC<ChartProps> = ({
     null
   );
 
-  // Вычисление единой сетки
+  // Вычисление единой сетки с КВАДРАТНЫМИ блоками
   const calculateGrid = useCallback(() => {
     if (chartDimensions.width === 0 || chartDimensions.height === 0) return;
 
@@ -78,39 +78,44 @@ export const Chart: React.FC<ChartProps> = ({
     const availableWidth = chartDimensions.width - gap * (cols - 1);
     const availableHeight = chartDimensions.height - gap * (rows - 1);
 
-    // Размер ячеек - используем точно доступное пространство
-    const cellWidth = availableWidth / cols;
-    const cellHeight = availableHeight / rows;
+    // Размер ячеек - ВСЕГДА квадратные
+    const maxCellWidth = availableWidth / cols;
+    const maxCellHeight = availableHeight / rows;
 
-    // Создаем массив ячеек сетки с точным позиционированием
-    const cells: GridCell[] = [];
+    // Выбираем минимальный размер для сохранения квадратной формы
+    const cellSize = Math.min(maxCellWidth, maxCellHeight);
 
-    // Рассчитываем начальные отступы для центрирования сетки
-    const totalGridWidth = cols * cellWidth + (cols - 1) * gap;
-    const totalGridHeight = rows * cellHeight + (rows - 1) * gap;
+    // Рассчитываем реальные размеры сетки
+    const totalGridWidth = cols * cellSize + (cols - 1) * gap;
+    const totalGridHeight = rows * cellSize + (rows - 1) * gap;
+
+    // Центрируем сетку в контейнере
     const offsetX = (chartDimensions.width - totalGridWidth) / 2;
     const offsetY = (chartDimensions.height - totalGridHeight) / 2;
 
+    // Создаем массив ячеек сетки
+    const cells: GridCell[] = [];
+
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        const x = offsetX + col * (cellWidth + gap);
-        const y = offsetY + row * (cellHeight + gap);
+        const x = offsetX + col * (cellSize + gap);
+        const y = offsetY + row * (cellSize + gap);
 
         cells.push({
           x,
           y,
-          width: cellWidth,
-          height: cellHeight,
-          centerX: x + cellWidth / 2,
-          centerY: y + cellHeight / 2,
+          width: cellSize,
+          height: cellSize,
+          centerX: x + cellSize / 2,
+          centerY: y + cellSize / 2,
         });
       }
     }
 
     setGridCells(cells);
     setGridConfig({
-      cellWidth,
-      cellHeight,
+      cellWidth: cellSize,
+      cellHeight: cellSize,
       gap,
       cols,
       rows,

@@ -105,16 +105,12 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     const availableHeight =
       containerDimensions.height - gap * (blocksPerColumn - 1);
 
-    // Используем точные размеры для заполнения пространства
-    const blockWidth = availableWidth / blocksPerRow;
-    const blockHeight = availableHeight / blocksPerColumn;
+    // Всегда используем квадратные блоки
+    const maxBlockWidth = availableWidth / blocksPerRow;
+    const maxBlockHeight = availableHeight / blocksPerColumn;
 
-    // Для сохранения пропорций можно использовать минимальное значение
-    // но это опционально - можно использовать прямоугольные блоки
-    const useSquareBlocks = true; // можно сделать это настройкой
-    const calculatedSize = useSquareBlocks
-      ? Math.min(blockWidth, blockHeight)
-      : blockWidth; // или можно передавать оба размера
+    // Выбираем минимальный размер для сохранения квадратной формы
+    const calculatedSize = Math.min(maxBlockWidth, maxBlockHeight);
 
     setBlockSize(calculatedSize);
   }, [
@@ -155,9 +151,7 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
               <Block
                 block={block}
                 onClick={handleBlockClick}
-                size={Math.min(cell.width, cell.height)}
-                width={cell.width}
-                height={cell.height}
+                size={cell.width} // Используем квадратный размер
               />
             </div>
           );
@@ -166,7 +160,7 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     );
   }
 
-  // Fallback to original CSS Grid
+  // Fallback to original CSS Grid - тоже с центрированием
   const gridGap = Math.max(1, Math.min(4, containerDimensions.width / 200));
 
   return (

@@ -10,17 +10,9 @@ interface BlockProps {
   block: ChartBlock;
   onClick: (blockId: string) => void;
   size: number;
-  width?: number; // Добавить опциональную ширину
-  height?: number; // Добавить опциональную высоту
 }
 
-export const Block: React.FC<BlockProps> = ({
-  block,
-  onClick,
-  size,
-  width,
-  height,
-}) => {
+export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
   const handleClick = () => {
     // Only allow click if not in loading state
     if (block.status !== "loading") {
@@ -39,8 +31,8 @@ export const Block: React.FC<BlockProps> = ({
       }`}
       onClick={handleClick}
       style={{
-        width: width ? `${width}px` : `${size}px`,
-        height: height ? `${height}px` : `${size}px`,
+        width: `${size}px`,
+        height: `${size}px`,
         cursor: block.status === "loading" ? "not-allowed" : "pointer",
       }}
     >
