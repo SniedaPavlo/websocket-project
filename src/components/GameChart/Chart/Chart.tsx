@@ -151,22 +151,6 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
-  // Price labels
-  const priceLabels = React.useMemo(() => {
-    if (priceData.length === 0) return [];
-
-    const { min, max } = getMinMaxPrice(priceData);
-    const padding = (max - min) * 0.1 || 1;
-    const minPrice = min - padding;
-    const maxPrice = max + padding;
-    const steps = 5;
-
-    return Array.from({ length: steps + 1 }, (_, i) => {
-      const price = maxPrice - (maxPrice - minPrice) * (i / steps);
-      return price.toFixed(2);
-    });
-  }, [priceData]);
-
   return (
     <div
       ref={containerRef}
@@ -177,14 +161,6 @@ export const Chart: React.FC<ChartProps> = ({
       }}
     >
       <div className={styles.chartWrapper}>
-        <div className={styles.priceLabels}>
-          {priceLabels.map((price, i) => (
-            <div key={i} className={styles.priceLabel}>
-              ${price}
-            </div>
-          ))}
-        </div>
-
         <div ref={chartContentRef} className={styles.chartContent}>
           <BlockGrid
             blocks={blocks}

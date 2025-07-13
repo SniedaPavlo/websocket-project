@@ -30,26 +30,6 @@
   min-height: 100%;
 }
 
-.priceLabels {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 60px;
-  min-width: 60px;
-  padding: 10px 5px;
-  background-color: #1a1a1a;
-
-  // Full height
-  height: 100%;
-
-  // Prevent shrinking
-  flex-shrink: 0;
-
-  // Higher z-index than blocks but lower than canvas
-  position: relative;
-  z-index: 10;
-}
-
 .priceLabel {
   color: white;
   font-size: clamp(10px, 1.5vw, 12px); // Adaptive font size
@@ -142,16 +122,6 @@
     min-height: 150px;
   }
 
-  .priceLabels {
-    width: 50px;
-    min-width: 50px;
-    padding: 8px 4px;
-  }
-
-  .priceLabel {
-    font-size: clamp(9px, 1.2vw, 11px);
-  }
-
   .chartContent {
     margin: 1px;
   }
@@ -165,16 +135,6 @@
     min-height: 120px;
   }
 
-  .priceLabels {
-    width: 40px;
-    min-width: 40px;
-    padding: 6px 3px;
-  }
-
-  .priceLabel {
-    font-size: clamp(8px, 1vw, 10px);
-  }
-
   .chartContent {
     margin: 1px;
   }
@@ -185,16 +145,6 @@
   .chart {
     min-width: 100px;
     min-height: 100px;
-  }
-
-  .priceLabels {
-    width: 35px;
-    min-width: 35px;
-    padding: 4px 2px;
-  }
-
-  .priceLabel {
-    font-size: clamp(7px, 0.8vw, 9px);
   }
 
   .chartContent {
@@ -211,31 +161,12 @@
 
 // Container queries for more precise adaptation
 @container (max-width: 300px) {
-  .priceLabels {
-    width: 35px;
-    min-width: 35px;
-  }
-
-  .priceLabel {
-    font-size: 8px;
-  }
-
   .chartContent {
     margin: 0px;
   }
 }
 
 @container (max-width: 200px) {
-  .priceLabels {
-    width: 30px;
-    min-width: 30px;
-    padding: 2px 1px;
-  }
-
-  .priceLabel {
-    font-size: 7px;
-  }
-
   .chartContent {
     margin: 0px;
   }
