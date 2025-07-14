@@ -3,7 +3,6 @@ import { ChartBlock, GridCell, GridConfig } from "../../../types";
 import { Block } from "./Block/Block";
 import styles from "./BlockGrid.module.scss";
 
-
 interface BlockGridProps {
   blocks: ChartBlock[];
   onBlockClick: (blockId: string) => void;
@@ -41,10 +40,8 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     [onBlockClick]
   );
 
-  // Use unified grid if provided, otherwise fallback to original logic
   const useUnifiedGrid = gridCells && gridConfig && gridCells.length > 0;
 
-  // Update container dimensions
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
@@ -73,7 +70,6 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     }
   }, [containerWidth, containerHeight]);
 
-  // Calculate block size based on container dimensions (fallback)
   useEffect(() => {
     if (useUnifiedGrid) {
       setBlockSize(gridConfig!.cellWidth);
@@ -106,7 +102,6 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
   ]);
 
   if (useUnifiedGrid) {
-    // Use unified grid positioning
     return (
       <div
         ref={containerRef}
@@ -135,7 +130,7 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
               <Block
                 block={block}
                 onClick={handleBlockClick}
-                size={cell.width} // Используем квадратный размер
+                size={cell.width}
               />
             </div>
           );
@@ -144,7 +139,6 @@ export const BlockGrid: React.FC<BlockGridProps> = ({
     );
   }
 
-  // Fallback to original CSS Grid - тоже с центрированием
   const gridGap = Math.max(1, Math.min(4, containerDimensions.width / 200));
 
   return (

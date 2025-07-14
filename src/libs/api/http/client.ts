@@ -19,25 +19,20 @@ export class HttpClient {
       },
     });
 
-    // Request interceptor for adding JWT token
     this.axiosInstance.interceptors.request.use((config) => {
       return config;
     });
 
-    // Response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response) {
-          // Server returned an error
           throw new Error(
             `HTTP ${error.response.status}: ${error.response.statusText}`
           );
         } else if (error.request) {
-          // Request was sent but no response received
           throw new Error("Network error: No response received");
         } else {
-          // Other errors
           throw new Error(`Request error: ${error.message}`);
         }
       }

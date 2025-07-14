@@ -84,6 +84,6 @@ export const useResponsive = (customConfig?: ResponsiveConfig) => {
     isDesktop,
     blockConfig: getBlockConfig(),
     getBlockConfig,
-    getStopPosition, // New function
+    getStopPosition,
   };
 };

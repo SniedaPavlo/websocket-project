@@ -17,7 +17,6 @@ interface ChartProps {
   className?: string;
 }
 
-// Unified grid for blocks and line
 export const Chart: React.FC<ChartProps> = ({
   feed = "SOL_USD",
   width = 800,
@@ -33,7 +32,6 @@ export const Chart: React.FC<ChartProps> = ({
     height: 0,
   });
 
-  // Unified grid for blocks and line
   const [gridCells, setGridCells] = useState<GridCell[]>([]);
   const [gridConfig, setGridConfig] = useState<GridConfig>({
     cellWidth: 0,
@@ -44,40 +42,23 @@ export const Chart: React.FC<ChartProps> = ({
   });
 
   const { blockConfig } = useResponsive();
-
-  // WebSocket data fetching
   const { priceData, isConnected } = useWebSocketPrice({ feed });
 
-  // Calculate unified grid with SQUARE blocks
   const calculateGrid = useCallback(() => {
     if (chartDimensions.width === 0 || chartDimensions.height === 0) return;
 
     const cols = blockConfig.blocksPerRow;
     const rows = blockConfig.blocksPerColumn;
-
-    // Calculate gap exactly as in the original BlockGrid
     const gap = Math.max(1, Math.min(4, chartDimensions.width / 200));
-
-    // Available space for cells
     const availableWidth = chartDimensions.width - gap * (cols - 1);
     const availableHeight = chartDimensions.height - gap * (rows - 1);
-
-    // Cell size - ALWAYS square
     const maxCellWidth = availableWidth / cols;
     const maxCellHeight = availableHeight / rows;
-
-    // Choose the minimum size to keep square shape
     const cellSize = Math.min(maxCellWidth, maxCellHeight);
-
-    // Calculate actual grid size
     const totalGridWidth = cols * cellSize + (cols - 1) * gap;
     const totalGridHeight = rows * cellSize + (rows - 1) * gap;
-
-    // Center the grid in the container
     const offsetX = (chartDimensions.width - totalGridWidth) / 2;
     const offsetY = (chartDimensions.height - totalGridHeight) / 2;
-
-    // Create array of grid cells
     const cells: GridCell[] = [];
 
     for (let row = 0; row < rows; row++) {
@@ -106,7 +87,6 @@ export const Chart: React.FC<ChartProps> = ({
     });
   }, [chartDimensions, blockConfig]);
 
-  // Blocks initialization
   useEffect(() => {
     const newBlocks = generateBlocksGrid(
       blockConfig.blocksPerRow,
@@ -115,7 +95,6 @@ export const Chart: React.FC<ChartProps> = ({
     setBlocks(newBlocks);
   }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
-  // Handle container resize and calculate grid
   useEffect(() => {
     const updateDimensions = () => {
       if (chartContentRef.current) {
@@ -138,7 +117,6 @@ export const Chart: React.FC<ChartProps> = ({
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Recalculate grid on size change
   useEffect(() => {
     calculateGrid();
   }, [calculateGrid]);

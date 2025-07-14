@@ -14,22 +14,18 @@ interface BlockProps {
 
 export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
   const handleClick = () => {
-    // Only allow click if not in loading state
     if (block.status !== "loading") {
       onClick(block.id);
     }
   };
 
-  // Determine if we should show status content instead of regular content
   const showStatusContent =
     block.status === "loading" || block.status === "canPlusBet";
 
-  // Render bananas based on count
   const renderBananas = () => {
     if (!block.bananas || block.bananas === 0) return null;
 
     if (block.bananas <= 3) {
-      // Show individual banana icons for 3 or fewer
       return (
         <div className={styles.bananas}>
           {Array.from({ length: block.bananas }).map((_, i) => (
@@ -38,7 +34,6 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
         </div>
       );
     } else {
-      // Show single banana icon with multiplier for more than 3
       return (
         <div className={styles.bananasWithMultiplier}>
           <BananaIcon />
@@ -61,13 +56,9 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
       }}
     >
       <div className={styles.content}>
-        {/* Show status content if status is set */}
         {showStatusContent ? (
           <div className={styles.statusContent}>
-            {block.status === "loading" && (
-              // Simple loading spinner
-              <LoadingIcon />
-            )}
+            {block.status === "loading" && <LoadingIcon />}
             {block.status === "canPlusBet" && (
               <button
                 onClick={(e) => {
@@ -81,7 +72,6 @@ export const Block: React.FC<BlockProps> = ({ block, onClick, size }) => {
             )}
           </div>
         ) : (
-          // Show regular content when no status
           <>
             <div className={styles.headerWrapper}>
               <div className={styles.topLeft}>{renderBananas()}</div>

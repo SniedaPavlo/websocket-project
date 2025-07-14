@@ -3,32 +3,22 @@
 
 .block {
   --text-scale: 1.07;
-  --base-top-right-size: 0.856rem; // 0.8 * 1.07
-  --base-main-size: 2.14rem; // 2 * 1.07
-  --base-sub-size: 0.963rem; /* 0.9 * 1.07 */
+  --base-top-right-size: 0.856rem;
+  --base-main-size: 2.14rem;
+  --base-sub-size: 0.963rem;
   background-color: $block-color;
   border-radius: $border-radius-sm;
   border: 1px solid $border-color;
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-
-  // Guarantee minimum size for clickability
   min-width: 4px;
   min-height: 4px;
   padding: 10px 10px;
-
-  // Performance optimization
   will-change: transform, background-color, border-color;
   backface-visibility: hidden;
   transform: translateZ(0);
-
-  // Improve rendering quality of small elements
   image-rendering: crisp-edges;
-
-  // Ensure correct border rendering
   box-sizing: border-box;
-
-  // Flexbox for content alignment
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,10 +97,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px; // Limit maximum width
-  flex-shrink: 1; // Allow the element to shrink
+  max-width: 150px;
+  flex-shrink: 1;
 
-  // Automatically reduce font size for long text
   &:has-text-overflow {
     font-size: calc(var(--base-top-right-size) * var(--text-scale) * 0.8);
   }
@@ -129,7 +118,6 @@
   font-family: "Instrument Serif", serif;
   font-weight: 400;
   font-size: calc(var(--base-main-size) * var(--text-scale));
-
   color: $text-color;
   margin: 0;
   white-space: nowrap;
@@ -141,7 +129,7 @@
   font-family: "Instrument Serif", serif;
   font-weight: 400;
   font-size: calc(var(--base-sub-size) * var(--text-scale));
-  line-height: 1; // Keep proportion 20/11.31
+  line-height: 1;
   color: $text-sub-color;
   margin: 0;
   white-space: nowrap;
@@ -149,10 +137,9 @@
   text-overflow: ellipsis;
 }
 
-// Responsive styles for different screen sizes
 @media (max-width: $tablet) {
   .block {
-    --text-scale: 0.9095; // 0.85 * 1.07, Увеличено на 7%
+    --text-scale: 0.9095;
     border-width: 0.75px;
     transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -178,10 +165,9 @@
 
 @media (max-width: $mobile) {
   .block {
-    --text-scale: 0.749; // 0.7 * 1.07, Увеличено на 7%
+    --text-scale: 0.749;
     border-width: 0.5px;
     transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-    // Уменьшаем паддинги на 70%
     padding: 3px 3px;
 
     &:hover {
@@ -204,13 +190,11 @@
   }
 }
 
-// For very small screens
 @media (max-width: 320px) {
   .block {
-    --text-scale: 0.5885; // 0.55 * 1.07, Увеличено на 7%
+    --text-scale: 0.5885;
     border-width: 0.25px;
     transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
-    // Уменьшаем паддинги на 70%
     padding: 3px 3px;
 
     &:hover {
@@ -233,15 +217,12 @@
   }
 }
 
-// For high resolutions (retina)
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .block {
-    // Sharper borders on retina displays
     border-width: 0.5px;
   }
 }
 
-// Optimization for devices with limited resources
 @media (prefers-reduced-motion: reduce) {
   .block {
     transition: none;
