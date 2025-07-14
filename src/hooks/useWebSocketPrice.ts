@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PriceData } from "@/types";
-import { BananaZoneClient } from "../libs/api/index";
+import { BananaZoneClient } from "../libs/api";
 
 interface UseWebSocketPriceOptions {
   feed: string;
