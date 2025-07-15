@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { ChartBlock, GridCell, GridConfig } from "@/types";
+import { ChartBlock, GridCell, GridConfig, PriceData } from "@/types";
 import { BlockGrid } from "../BlockGrid";
 import { Line } from "./Line/Line";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../../libs/utils/chartUtils";
 import { useResponsive } from "../../../hooks/useResponsive";
 import { useWebSocketPrice } from "../../../hooks/useWebSocketPrice";
+import { BananaZoneClient } from "../../../libs/api";
 import styles from "./Chart.module.scss";
 
 interface ChartProps {
@@ -16,6 +17,18 @@ interface ChartProps {
   height?: number;
   className?: string;
 }
+
+interface GameState {
+  gameNumber: number;
+  startTime: number;
+  priceHistory: PriceData[];
+  lastKnownPrice: number | null;
+  currentColumnIndex: number;
+}
+
+const GAME_DURATION = 30000; // 30 seconds in milliseconds
+const UPDATE_INTERVAL = 100; // Update visualization every 100ms for smooth animation
+const SECONDS_PER_GAME = 30;
 
 export const Chart: React.FC<ChartProps> = ({
   feed = "SOL_USD",
@@ -41,8 +54,110 @@ export const Chart: React.FC<ChartProps> = ({
     rows: 0,
   });
 
+  // Game state management
+  const [gameState, setGameState] = useState<GameState>({
+    gameNumber: 0,
+    startTime: Date.now(),
+    priceHistory: [],
+    lastKnownPrice: null,
+    currentColumnIndex: 0,
+  });
+
+  // Visualization data that updates smoothly
+  const [visualPriceData, setVisualPriceData] = useState<PriceData[]>([]);
+
   const { blockConfig } = useResponsive();
   const { priceData, isConnected } = useWebSocketPrice({ feed });
+
+  // Initialize competition data
+  useEffect(() => {
+    const fetchCompetition = async () => {
+      try {
+        const client = new BananaZoneClient();
+        const competitions = await client.competitions.getAll();
+        console.log("Competition data:", competitions[0]);
+      } catch (error) {
+        console.error("Failed to fetch competition:", error);
+      }
+    };
+
+    fetchCompetition();
+  }, []);
+
+  // Update last known price when WebSocket sends new data
+  useEffect(() => {
+    if (priceData.length > 0) {
+      const latestPrice = priceData[priceData.length - 1].price;
+      setGameState((prev) => ({
+        ...prev,
+        lastKnownPrice: latestPrice,
+      }));
+    }
+  }, [priceData]);
+
+  // Game timer and visualization update logic
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const now = Date.now();
+      const gameElapsed = now - gameState.startTime;
+
+      // Check if current game should end
+      if (gameElapsed >= GAME_DURATION) {
+        // Move to next column/game
+        const nextColumnIndex = gameState.currentColumnIndex + 1;
+
+        // Check if we've filled all columns
+        if (nextColumnIndex >= blockConfig.blocksPerRow) {
+          // Reset to beginning
+          setGameState({
+            gameNumber: 0,
+            startTime: now,
+            priceHistory: [],
+            lastKnownPrice: gameState.lastKnownPrice,
+            currentColumnIndex: 0,
+          });
+          setVisualPriceData([]);
+        } else {
+          // Start new game in next column
+          setGameState((prev) => ({
+            gameNumber: prev.gameNumber + 1,
+            startTime: now,
+            priceHistory: [],
+            lastKnownPrice: prev.lastKnownPrice,
+            currentColumnIndex: nextColumnIndex,
+          }));
+        }
+      } else if (gameState.lastKnownPrice !== null) {
+        // Update visualization with smooth interpolation
+        const secondsElapsed = gameElapsed / 1000;
+
+        // Create data point for current moment
+        const newVisualPoint: PriceData = {
+          price: gameState.lastKnownPrice,
+          timestamp: now,
+        };
+
+        // Store this as part of the game's price history
+        setVisualPriceData((prev) => {
+          // Keep only data for current game
+          const currentGameData = prev.filter(
+            (p) => p.timestamp >= gameState.startTime
+          );
+
+          // Add new point
+          return [...currentGameData, newVisualPoint];
+        });
+      }
+    }, UPDATE_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [
+    gameState.startTime,
+    gameState.gameNumber,
+    gameState.lastKnownPrice,
+    gameState.currentColumnIndex,
+    blockConfig.blocksPerRow,
+  ]);
 
   const calculateGrid = useCallback(() => {
     if (chartDimensions.width === 0 || chartDimensions.height === 0) return;
@@ -129,6 +244,12 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
+  // Calculate game progress for visualization
+  const gameProgress = Math.min(
+    (Date.now() - gameState.startTime) / GAME_DURATION,
+    1.0
+  );
+
   return (
     <div
       ref={containerRef}
@@ -152,12 +273,15 @@ export const Chart: React.FC<ChartProps> = ({
             gridConfig={gridConfig}
           />
           <Line
-            priceData={priceData}
+            priceData={visualPriceData}
             chartDimensions={chartDimensions}
             isConnected={isConnected}
             gridCells={gridCells}
             gridConfig={gridConfig}
-            stopAtBlock={blockConfig.stopAtBlock}
+            gameProgress={gameProgress}
+            gameNumber={gameState.gameNumber}
+            currentColumnIndex={gameState.currentColumnIndex}
+            gameStartTime={gameState.startTime}
           />
         </div>
       </div>

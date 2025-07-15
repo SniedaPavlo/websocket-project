@@ -9,6 +9,7 @@ export interface Competition {
   admin: string;
   startTime: number;
   endTime: number;
+  volatility: string;
 }
 
 export interface PoolsRequest {
