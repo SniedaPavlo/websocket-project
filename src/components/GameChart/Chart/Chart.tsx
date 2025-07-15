@@ -11,51 +11,63 @@ import { useWebSocketPrice } from "../../../hooks/useWebSocketPrice";
 import { BananaZoneClient } from "../../../libs/api";
 import styles from "./Chart.module.scss";
 
-// Конфигурация зон котировок по строкам (Y-координаты)
-const PRICE_ZONES = [
-  { row: 0, priceMin: 0.15, priceMax: 0.2, label: "Zone 4" },
-  { row: 1, priceMin: 0.1, priceMax: 0.15, label: "Zone 3" },
-  { row: 2, priceMin: 0.05, priceMax: 0.1, label: "Zone 2" },
-  { row: 3, priceMin: 0.0, priceMax: 0.05, label: "Zone 1" },
-];
-
-// Функция для получения зоны по строке
-const getZoneByRow = (row: number) => {
-  return PRICE_ZONES.find((zone) => zone.row === row) || PRICE_ZONES[0];
+// Функция для обработки данных с WebSocket
+const processWebSocketData = (rawData: [number, number]): PriceData => {
+  const [timestamp, rawPrice] = rawData;
+  // Преобразуем цену: 16111248780 -> 161.11
+  const price = rawPrice / 100000000;
+  return {
+    price: parseFloat(price.toFixed(2)),
+    timestamp: timestamp * 1000, // конвертируем в миллисекунды
+  };
 };
 
-// Функция для определения строку по цене
-const getRowByPrice = (price: number) => {
-  for (const zone of PRICE_ZONES) {
+// Функция для генерации зон котировок на основе текущей цены
+const generatePriceZones = (currentPrice: number) => {
+  const basePrice = Math.floor(currentPrice * 100) / 100; // Округляем до сотых
+  const step = 0.05; // Шаг 5 центов
+
+  return [
+    {
+      row: 0,
+      priceMin: basePrice + step * 3,
+      priceMax: basePrice + step * 4,
+      label: "Zone 4",
+    },
+    {
+      row: 1,
+      priceMin: basePrice + step * 2,
+      priceMax: basePrice + step * 3,
+      label: "Zone 3",
+    },
+    {
+      row: 2,
+      priceMin: basePrice + step,
+      priceMax: basePrice + step * 2,
+      label: "Zone 2",
+    },
+    {
+      row: 3,
+      priceMin: basePrice,
+      priceMax: basePrice + step,
+      label: "Zone 1",
+    },
+  ];
+};
+
+// Функция для получения зоны по строке
+const getZoneByRow = (row: number, priceZones: any[]) => {
+  return priceZones.find((zone) => zone.row === row) || priceZones[0];
+};
+
+// Функция для определения строки по цене
+const getRowByPrice = (price: number, priceZones: any[]) => {
+  for (const zone of priceZones) {
     if (price >= zone.priceMin && price <= zone.priceMax) {
       return zone.row;
     }
   }
-  return PRICE_ZONES.length - 1; // Возвращаем последнюю строку по умолчанию
-};
-
-// Функция для ограничения цены глобальными границами
-const constrainPrice = (price: number) => {
-  const globalMin = Math.min(...PRICE_ZONES.map((z) => z.priceMin));
-  const globalMax = Math.max(...PRICE_ZONES.map((z) => z.priceMax));
-  return Math.max(globalMin, Math.min(globalMax, price));
-};
-
-// Функция для генерации случайной цены с учетом зон
-const generateRandomPrice = (previousPrice?: number) => {
-  const globalMin = Math.min(...PRICE_ZONES.map((z) => z.priceMin));
-  const globalMax = Math.max(...PRICE_ZONES.map((z) => z.priceMax));
-  const volatility = 0.01; // 1% волатильность
-
-  if (previousPrice) {
-    // Добавляем случайное изменение к предыдущей цене
-    const change = (Math.random() - 0.5) * volatility;
-    const newPrice = previousPrice + change;
-    return constrainPrice(newPrice);
-  } else {
-    // Генерируем случайную цену в глобальном диапазоне
-    return globalMin + Math.random() * (globalMax - globalMin);
-  }
+  return priceZones.length - 1; // Возвращаем последнюю строку по умолчанию
 };
 
 interface ChartProps {
@@ -69,7 +81,6 @@ interface GameState {
   gameNumber: number;
   startTime: number;
   priceHistory: PriceData[];
-  lastKnownPrice: number | null;
   currentColumnIndex: number;
 }
 
@@ -101,12 +112,11 @@ export const Chart: React.FC<ChartProps> = ({
     rows: 0,
   });
 
-  // Game state management - возвращаем к оригинальной логике колонок
+  // Game state management
   const [gameState, setGameState] = useState<GameState>({
     gameNumber: 0,
     startTime: Date.now(),
     priceHistory: [],
-    lastKnownPrice: null,
     currentColumnIndex: 0,
   });
 
@@ -118,6 +128,9 @@ export const Chart: React.FC<ChartProps> = ({
       startTime: number;
     }[]
   >([]);
+
+  // Динамические зоны цен
+  const [priceZones, setPriceZones] = useState<any[]>([]);
 
   const { blockConfig } = useResponsive();
   const { priceData, isConnected } = useWebSocketPrice({ feed });
@@ -137,8 +150,19 @@ export const Chart: React.FC<ChartProps> = ({
     fetchCompetition();
   }, []);
 
-  // Генерация цен с учетом зон
+  // Обновляем зоны цен при изменении цены
   useEffect(() => {
+    if (priceData.length > 0) {
+      const latestPrice = priceData[priceData.length - 1].price;
+      const newZones = generatePriceZones(latestPrice);
+      setPriceZones(newZones);
+    }
+  }, [priceData]);
+
+  // Логика игры с реальными данными WebSocket
+  useEffect(() => {
+    if (priceData.length === 0) return;
+
     const intervalId = setInterval(() => {
       const now = Date.now();
       const gameElapsed = now - gameState.startTime;
@@ -167,7 +191,6 @@ export const Chart: React.FC<ChartProps> = ({
             gameNumber: gameState.gameNumber + 1,
             startTime: now,
             priceHistory: [],
-            lastKnownPrice: gameState.lastKnownPrice,
             currentColumnIndex: 0,
           });
         } else {
@@ -176,26 +199,24 @@ export const Chart: React.FC<ChartProps> = ({
             gameNumber: prev.gameNumber + 1,
             startTime: now,
             priceHistory: [],
-            lastKnownPrice: prev.lastKnownPrice,
             currentColumnIndex: nextColumnIndex,
           }));
         }
       } else {
-        // Генерируем новую цену
-        const newPrice = generateRandomPrice(
-          gameState.lastKnownPrice || undefined
-        );
-
-        const newPricePoint: PriceData = {
-          price: newPrice,
-          timestamp: now,
-        };
-
-        setGameState((prev) => ({
-          ...prev,
-          priceHistory: [...prev.priceHistory, newPricePoint],
-          lastKnownPrice: newPrice,
-        }));
+        // Добавляем текущую цену в историю игры
+        const latestPrice = priceData[priceData.length - 1];
+        if (latestPrice) {
+          setGameState((prev) => ({
+            ...prev,
+            priceHistory: [
+              ...prev.priceHistory,
+              {
+                price: latestPrice.price,
+                timestamp: now,
+              },
+            ],
+          }));
+        }
       }
     }, UPDATE_INTERVAL);
 
@@ -203,10 +224,10 @@ export const Chart: React.FC<ChartProps> = ({
   }, [
     gameState.startTime,
     gameState.gameNumber,
-    gameState.lastKnownPrice,
     gameState.currentColumnIndex,
     gameState.priceHistory.length,
     blockConfig.blocksPerRow,
+    priceData,
   ]);
 
   const calculateGrid = useCallback(() => {
@@ -333,7 +354,7 @@ export const Chart: React.FC<ChartProps> = ({
             currentColumnIndex={gameState.currentColumnIndex}
             gameStartTime={gameState.startTime}
             allGamesData={allGamesData}
-            priceZones={PRICE_ZONES}
+            priceZones={priceZones}
           />
         </div>
       </div>
