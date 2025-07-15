@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from "react";
 import { PriceData, GridCell, GridConfig } from "@/types";
-import { getMinMaxPrice } from "../../../../libs/utils/chartUtils";
 import styles from "./Line.module.scss";
 
 interface PriceZone {
@@ -49,9 +48,7 @@ export const Line: React.FC<LineProps> = ({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
 
-    if (!canvas || !ctx || gridCells.length === 0) {
-      return;
-    }
+    if (!canvas || !ctx || gridCells.length === 0) return;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = chartDimensions.width * dpr;
@@ -59,22 +56,18 @@ export const Line: React.FC<LineProps> = ({
     canvas.style.width = `${chartDimensions.width}px`;
     canvas.style.height = `${chartDimensions.height}px`;
     ctx.scale(dpr, dpr);
-
     ctx.clearRect(0, 0, chartDimensions.width, chartDimensions.height);
 
-    const blocksPerRow = gridConfig.cols;
-    const blocksPerColumn = gridConfig.rows;
+    const { cols: blocksPerRow, rows: blocksPerColumn } = gridConfig;
 
-    // Получаем глобальные границы цен из зон (теперь динамические)
+    // Get global price bounds from zones
     const globalMin = Math.min(...priceZones.map((z) => z.priceMin));
     const globalMax = Math.max(...priceZones.map((z) => z.priceMax));
-
-    // Добавляем небольшой отступ для лучшей визуализации
     const padding = (globalMax - globalMin) * 0.02;
     const adjustedMin = globalMin - padding;
     const adjustedMax = globalMax + padding;
 
-    // Helper function to get column cells
+    // Get column cells
     const getColumnCells = (colIndex: number): GridCell[] => {
       const cells: GridCell[] = [];
       for (let row = 0; row < blocksPerColumn; row++) {
@@ -86,7 +79,7 @@ export const Line: React.FC<LineProps> = ({
       return cells;
     };
 
-    // Helper function to get column boundaries
+    // Get column boundaries
     const getColumnBounds = (colIndex: number) => {
       const cells = getColumnCells(colIndex);
       if (cells.length === 0) return null;
@@ -104,23 +97,16 @@ export const Line: React.FC<LineProps> = ({
       };
     };
 
-    // Функция для получения зоны по строке
-    const getZoneByRow = (row: number) => {
-      return priceZones.find((zone) => zone.row === row);
-    };
-
-    // Рисуем горизонтальные зоны котировок
+    // Draw price zones
     const drawPriceZones = () => {
       for (let row = 0; row < blocksPerColumn; row++) {
-        const zone = getZoneByRow(row);
+        const zone = priceZones.find((zone) => zone.row === row);
         if (!zone) continue;
 
-        // Получаем все ячейки в этой строке
         const rowCells = [];
         for (let col = 0; col < blocksPerRow; col++) {
           const cellIndex = row * blocksPerRow + col;
           if (cellIndex < gridCells.length) {
-            //@ts-ignore
             rowCells.push(gridCells[cellIndex]);
           }
         }
@@ -129,14 +115,11 @@ export const Line: React.FC<LineProps> = ({
 
         const firstCell = rowCells[0];
         const lastCell = rowCells[rowCells.length - 1];
-        //@ts-ignore
         const rowTop = firstCell.y;
-        //@ts-ignore
         const rowLeft = firstCell.x;
-        //@ts-ignore
         const rowRight = lastCell.x + lastCell.width;
 
-        // Рисуем верхнюю границу зоны
+        // Draw zone border
         ctx.strokeStyle = "rgba(252, 229, 124, 0.3)";
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
@@ -146,7 +129,7 @@ export const Line: React.FC<LineProps> = ({
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Подписи зон справа (показываем только каждую вторую для читаемости)
+        // Draw zone labels
         if (row % 2 === 0 || priceZones.length <= 6) {
           ctx.fillStyle = "rgba(252, 229, 124, 0.8)";
           ctx.font = "10px Arial";
@@ -160,28 +143,12 @@ export const Line: React.FC<LineProps> = ({
       }
     };
 
-    // Рисуем зоны
     drawPriceZones();
 
-    // Collect all price data including historical and current
-    const allPriceData: PriceData[] = [];
-
-    // Add historical games data
-    allGamesData.forEach((game) => {
-      allPriceData.push(...game.data);
-    });
-
-    // Add current game data
-    if (priceData.length > 0) {
-      allPriceData.push(...priceData);
-    }
-
-    // Функция для преобразования цены в Y-координату с учетом зон
+    // Convert price to Y coordinate
     const priceToY = (price: number, bounds: any) => {
-      // Нормализуем цену относительно глобального диапазона
       const normalizedPrice =
         (price - adjustedMin) / (adjustedMax - adjustedMin);
-      // Инвертируем Y (верх = высокая цена)
       return (
         bounds.bottom -
         normalizedPrice * bounds.height * 0.9 -
@@ -189,7 +156,7 @@ export const Line: React.FC<LineProps> = ({
       );
     };
 
-    // Функция для определения цвета линии - оставляем оригинальный цвет
+    // Get line gradient
     const getLineColor = () => {
       const gradient = ctx.createLinearGradient(0, 0, chartDimensions.width, 0);
       gradient.addColorStop(0.0, "#FAE279");
@@ -201,67 +168,8 @@ export const Line: React.FC<LineProps> = ({
       return gradient;
     };
 
-    // Draw historical games
-    allGamesData.forEach((gameData, gameIndex) => {
-      const columnBounds = getColumnBounds(gameData.columnIndex);
-      if (!columnBounds || gameData.data.length === 0) return;
-
-      drawGameLine(
-        ctx,
-        gameData.data,
-        columnBounds,
-        gameData.startTime,
-        false // not current game
-      );
-    });
-
-    // Draw current game
-    const currentColumnBounds = getColumnBounds(currentColumnIndex);
-    if (currentColumnBounds && priceData.length > 0) {
-      // Highlight current column
-      ctx.fillStyle = "rgba(252, 229, 124, 0.1)";
-      ctx.fillRect(
-        currentColumnBounds.left,
-        currentColumnBounds.top,
-        currentColumnBounds.width,
-        currentColumnBounds.height
-      );
-
-      // Рамка текущей колонки
-      ctx.strokeStyle = "#FCE57C";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        currentColumnBounds.left,
-        currentColumnBounds.top,
-        currentColumnBounds.width,
-        currentColumnBounds.height
-      );
-
-      drawGameLine(
-        ctx,
-        priceData,
-        currentColumnBounds,
-        gameStartTime,
-        true // is current game
-      );
-
-      // Draw game timer at bottom of current column
-      const remainingTime = Math.ceil(
-        SECONDS_PER_GAME - gameProgress * SECONDS_PER_GAME
-      );
-      ctx.fillStyle = "#FCE57C";
-      ctx.font = `bold 12px Arial`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-        `${remainingTime}s`,
-        currentColumnBounds.left + currentColumnBounds.width / 2,
-        currentColumnBounds.bottom + 20
-      );
-      ctx.textAlign = "left";
-    }
-
-    // Draw function for a single game
-    function drawGameLine(
+    // Draw game line
+    const drawGameLine = (
       ctx: CanvasRenderingContext2D,
       data: PriceData[],
       bounds: {
@@ -274,20 +182,13 @@ export const Line: React.FC<LineProps> = ({
       },
       startTime: number,
       isCurrent: boolean
-    ) {
+    ) => {
       if (data.length === 0) return;
 
-      const lineWidth = isCurrent ? 3 : 2;
-      ctx.lineWidth = lineWidth;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      // Рисуем линию с оригинальным цветом
       ctx.strokeStyle = getLineColor();
-      ctx.lineWidth = lineWidth;
+      ctx.lineWidth = isCurrent ? 3 : 2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-
       ctx.beginPath();
 
       let lastX = 0;
@@ -296,7 +197,6 @@ export const Line: React.FC<LineProps> = ({
       data.forEach((point, i) => {
         const timeElapsed = (point.timestamp - startTime) / 1000;
         const timeProgress = Math.min(timeElapsed / SECONDS_PER_GAME, 1);
-
         const x = bounds.left + bounds.width * timeProgress;
         const y = priceToY(point.price, bounds);
 
@@ -318,7 +218,7 @@ export const Line: React.FC<LineProps> = ({
 
       ctx.stroke();
 
-      // Draw end point for current game
+      // Draw current game indicators
       if (isCurrent && data.length > 0) {
         const pointRadius = Math.max(3, bounds.width * 0.05);
         const pointOuterRadius = Math.max(6, bounds.width * 0.1);
@@ -361,6 +261,59 @@ export const Line: React.FC<LineProps> = ({
         ctx.stroke();
         ctx.setLineDash([]);
       }
+    };
+
+    // Draw historical games
+    allGamesData.forEach((gameData) => {
+      const columnBounds = getColumnBounds(gameData.columnIndex);
+      if (columnBounds && gameData.data.length > 0) {
+        drawGameLine(
+          ctx,
+          gameData.data,
+          columnBounds,
+          gameData.startTime,
+          false
+        );
+      }
+    });
+
+    // Draw current game
+    const currentColumnBounds = getColumnBounds(currentColumnIndex);
+    if (currentColumnBounds && priceData.length > 0) {
+      // Highlight current column
+      ctx.fillStyle = "rgba(252, 229, 124, 0.1)";
+      ctx.fillRect(
+        currentColumnBounds.left,
+        currentColumnBounds.top,
+        currentColumnBounds.width,
+        currentColumnBounds.height
+      );
+
+      // Current column border
+      ctx.strokeStyle = "#FCE57C";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        currentColumnBounds.left,
+        currentColumnBounds.top,
+        currentColumnBounds.width,
+        currentColumnBounds.height
+      );
+
+      drawGameLine(ctx, priceData, currentColumnBounds, gameStartTime, true);
+
+      // Game timer
+      const remainingTime = Math.ceil(
+        SECONDS_PER_GAME - gameProgress * SECONDS_PER_GAME
+      );
+      ctx.fillStyle = "#FCE57C";
+      ctx.font = `bold 12px Arial`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `${remainingTime}s`,
+        currentColumnBounds.left + currentColumnBounds.width / 2,
+        currentColumnBounds.bottom + 20
+      );
+      ctx.textAlign = "left";
     }
 
     // Connect lines between columns
@@ -381,7 +334,6 @@ export const Line: React.FC<LineProps> = ({
             const lastPrice =
               currentGame.data[currentGame.data.length - 1].price;
             const firstPrice = nextGame.data[0].price;
-
             const lastY = priceToY(lastPrice, currentBounds);
             const firstY = priceToY(firstPrice, nextBounds);
 
@@ -403,7 +355,6 @@ export const Line: React.FC<LineProps> = ({
           if (lastBounds && currentBounds) {
             const lastPrice = lastGame.data[lastGame.data.length - 1].price;
             const firstPrice = priceData[0].price;
-
             const lastY = priceToY(lastPrice, lastBounds);
             const firstY = priceToY(firstPrice, currentBounds);
 
@@ -418,14 +369,17 @@ export const Line: React.FC<LineProps> = ({
       ctx.setLineDash([]);
     }
 
-    // Global status indicator
+    // Status indicator
     ctx.font = "12px Arial";
     ctx.fillStyle = isConnected ? "#FCE57C" : "#FF0000";
     ctx.textAlign = "left";
-    const statusText = isConnected ? "● LIVE" : "● OFFLINE";
-    ctx.fillText(statusText, chartDimensions.width - 60, 20);
+    ctx.fillText(
+      isConnected ? "● LIVE" : "● OFFLINE",
+      chartDimensions.width - 60,
+      20
+    );
 
-    // Overall game info
+    // Round info
     ctx.fillStyle = "#FCE57C";
     ctx.font = "bold 14px Arial";
     ctx.fillText(`Round ${Math.floor(gameNumber / blocksPerRow) + 1}`, 10, 20);

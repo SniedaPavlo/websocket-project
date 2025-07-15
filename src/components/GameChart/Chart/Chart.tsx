@@ -2,30 +2,15 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { ChartBlock, GridCell, GridConfig, PriceData } from "@/types";
 import { BlockGrid } from "../BlockGrid";
 import { Line } from "./Line/Line";
-import {
-  generateBlocksGrid,
-  getMinMaxPrice,
-} from "../../../libs/utils/chartUtils";
+import { generateBlocksGrid } from "../../../libs/utils/chartUtils";
 import { useResponsive } from "../../../hooks/useResponsive";
 import { useWebSocketPrice } from "../../../hooks/useWebSocketPrice";
-import { BananaZoneClient } from "../../../libs/api";
 import styles from "./Chart.module.scss";
 
-// Функция для обработки данных с WebSocket
-const processWebSocketData = (rawData: [number, number]): PriceData => {
-  const [timestamp, rawPrice] = rawData;
-  // Преобразуем цену: 16111248780 -> 161.11
-  const price = rawPrice / 100000000;
-  return {
-    price: parseFloat(price.toFixed(2)),
-    timestamp: timestamp * 1000, // конвертируем в миллисекунды
-  };
-};
-
-// Функция для генерации зон котировок на основе текущей цены
+// Generate price zones based on the current price
 const generatePriceZones = (currentPrice: number) => {
-  const basePrice = Math.floor(currentPrice * 100) / 100; // Округляем до сотых
-  const step = 0.05; // Шаг 5 центов
+  const basePrice = Math.floor(currentPrice * 100) / 100;
+  const step = 0.05;
 
   return [
     {
@@ -55,21 +40,6 @@ const generatePriceZones = (currentPrice: number) => {
   ];
 };
 
-// Функция для получения зоны по строке
-const getZoneByRow = (row: number, priceZones: any[]) => {
-  return priceZones.find((zone) => zone.row === row) || priceZones[0];
-};
-
-// Функция для определения строки по цене
-const getRowByPrice = (price: number, priceZones: any[]) => {
-  for (const zone of priceZones) {
-    if (price >= zone.priceMin && price <= zone.priceMax) {
-      return zone.row;
-    }
-  }
-  return priceZones.length - 1; // Возвращаем последнюю строку по умолчанию
-};
-
 interface ChartProps {
   feed?: string;
   width?: number;
@@ -77,16 +47,8 @@ interface ChartProps {
   className?: string;
 }
 
-interface GameState {
-  gameNumber: number;
-  startTime: number;
-  priceHistory: PriceData[];
-  currentColumnIndex: number;
-}
-
-const GAME_DURATION = 30000; // 30 seconds in milliseconds
-const UPDATE_INTERVAL = 100; // Update visualization every 100ms for smooth animation
-const SECONDS_PER_GAME = 30;
+const GAME_DURATION = 30000;
+const UPDATE_INTERVAL = 100;
 
 export const Chart: React.FC<ChartProps> = ({
   feed = "SOL_USD",
@@ -94,15 +56,12 @@ export const Chart: React.FC<ChartProps> = ({
   height = 400,
   className = "",
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const chartContentRef = useRef<HTMLDivElement>(null);
-
   const [blocks, setBlocks] = useState<ChartBlock[]>([]);
   const [chartDimensions, setChartDimensions] = useState({
     width: 0,
     height: 0,
   });
-
   const [gridCells, setGridCells] = useState<GridCell[]>([]);
   const [gridConfig, setGridConfig] = useState<GridConfig>({
     cellWidth: 0,
@@ -112,15 +71,13 @@ export const Chart: React.FC<ChartProps> = ({
     rows: 0,
   });
 
-  // Game state management
-  const [gameState, setGameState] = useState<GameState>({
+  const [gameState, setGameState] = useState({
     gameNumber: 0,
     startTime: Date.now(),
-    priceHistory: [],
+    priceHistory: [] as PriceData[],
     currentColumnIndex: 0,
   });
 
-  // All historical price data across all games
   const [allGamesData, setAllGamesData] = useState<
     {
       columnIndex: number;
@@ -129,37 +86,20 @@ export const Chart: React.FC<ChartProps> = ({
     }[]
   >([]);
 
-  // Динамические зоны цен
   const [priceZones, setPriceZones] = useState<any[]>([]);
 
   const { blockConfig } = useResponsive();
   const { priceData, isConnected } = useWebSocketPrice({ feed });
 
-  // Initialize competition data
-  useEffect(() => {
-    const fetchCompetition = async () => {
-      try {
-        const client = new BananaZoneClient();
-        const competitions = await client.competitions.getAll();
-        console.log("Competition data:", competitions[0]);
-      } catch (error) {
-        console.error("Failed to fetch competition:", error);
-      }
-    };
-
-    fetchCompetition();
-  }, []);
-
-  // Обновляем зоны цен при изменении цены
+  // Update price zones
   useEffect(() => {
     if (priceData.length > 0) {
       const latestPrice = priceData[priceData.length - 1].price;
-      const newZones = generatePriceZones(latestPrice);
-      setPriceZones(newZones);
+      setPriceZones(generatePriceZones(latestPrice));
     }
   }, [priceData]);
 
-  // Логика игры с реальными данными WebSocket
+  // Game logic
   useEffect(() => {
     if (priceData.length === 0) return;
 
@@ -167,9 +107,8 @@ export const Chart: React.FC<ChartProps> = ({
       const now = Date.now();
       const gameElapsed = now - gameState.startTime;
 
-      // Check if current game should end
       if (gameElapsed >= GAME_DURATION) {
-        // Save current game data before moving to next
+        // Save current game data
         if (gameState.priceHistory.length > 0) {
           setAllGamesData((prev) => [
             ...prev,
@@ -181,29 +120,18 @@ export const Chart: React.FC<ChartProps> = ({
           ]);
         }
 
-        // Move to next column/game
+        // Move to the next column
         const nextColumnIndex = gameState.currentColumnIndex + 1;
 
-        // Check if we've filled all columns
-        if (nextColumnIndex >= blockConfig.blocksPerRow) {
-          // Reset to beginning but keep history
-          setGameState({
-            gameNumber: gameState.gameNumber + 1,
-            startTime: now,
-            priceHistory: [],
-            currentColumnIndex: 0,
-          });
-        } else {
-          // Start new game in next column
-          setGameState((prev) => ({
-            gameNumber: prev.gameNumber + 1,
-            startTime: now,
-            priceHistory: [],
-            currentColumnIndex: nextColumnIndex,
-          }));
-        }
+        setGameState({
+          gameNumber: gameState.gameNumber + 1,
+          startTime: now,
+          priceHistory: [],
+          currentColumnIndex:
+            nextColumnIndex >= blockConfig.blocksPerRow ? 0 : nextColumnIndex,
+        });
       } else {
-        // Добавляем текущую цену в историю игры
+        // Add current price
         const latestPrice = priceData[priceData.length - 1];
         if (latestPrice) {
           setGameState((prev) => ({
@@ -225,11 +153,11 @@ export const Chart: React.FC<ChartProps> = ({
     gameState.startTime,
     gameState.gameNumber,
     gameState.currentColumnIndex,
-    gameState.priceHistory.length,
     blockConfig.blocksPerRow,
     priceData,
   ]);
 
+  // Grid calculation
   const calculateGrid = useCallback(() => {
     if (chartDimensions.width === 0 || chartDimensions.height === 0) return;
 
@@ -238,9 +166,7 @@ export const Chart: React.FC<ChartProps> = ({
     const gap = Math.max(1, Math.min(4, chartDimensions.width / 200));
     const availableWidth = chartDimensions.width - gap * (cols - 1);
     const availableHeight = chartDimensions.height - gap * (rows - 1);
-    const maxCellWidth = availableWidth / cols;
-    const maxCellHeight = availableHeight / rows;
-    const cellSize = Math.min(maxCellWidth, maxCellHeight);
+    const cellSize = Math.min(availableWidth / cols, availableHeight / rows);
     const totalGridWidth = cols * cellSize + (cols - 1) * gap;
     const totalGridHeight = rows * cellSize + (rows - 1) * gap;
     const offsetX = (chartDimensions.width - totalGridWidth) / 2;
@@ -251,7 +177,6 @@ export const Chart: React.FC<ChartProps> = ({
       for (let col = 0; col < cols; col++) {
         const x = offsetX + col * (cellSize + gap);
         const y = offsetY + row * (cellSize + gap);
-
         cells.push({
           x,
           y,
@@ -273,23 +198,20 @@ export const Chart: React.FC<ChartProps> = ({
     });
   }, [chartDimensions, blockConfig]);
 
+  // Generate blocks
   useEffect(() => {
-    const newBlocks = generateBlocksGrid(
-      blockConfig.blocksPerRow,
-      blockConfig.blocksPerColumn
+    setBlocks(
+      generateBlocksGrid(blockConfig.blocksPerRow, blockConfig.blocksPerColumn)
     );
-    setBlocks(newBlocks);
   }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
+  // Update dimensions
   useEffect(() => {
     const updateDimensions = () => {
       if (chartContentRef.current) {
         const rect = chartContentRef.current.getBoundingClientRect();
-        const newWidth = rect.width;
-        const newHeight = rect.height;
-
-        if (newWidth > 0 && newHeight > 0) {
-          setChartDimensions({ width: newWidth, height: newHeight });
+        if (rect.width > 0 && rect.height > 0) {
+          setChartDimensions({ width: rect.width, height: rect.height });
         }
       }
     };
@@ -299,7 +221,6 @@ export const Chart: React.FC<ChartProps> = ({
     if (chartContentRef.current) {
       resizeObserver.observe(chartContentRef.current);
     }
-
     return () => resizeObserver.disconnect();
   }, []);
 
@@ -315,7 +236,6 @@ export const Chart: React.FC<ChartProps> = ({
     );
   }, []);
 
-  // Calculate game progress for visualization
   const gameProgress = Math.min(
     (Date.now() - gameState.startTime) / GAME_DURATION,
     1.0
@@ -323,12 +243,8 @@ export const Chart: React.FC<ChartProps> = ({
 
   return (
     <div
-      ref={containerRef}
       className={`${styles.chart} ${className}`}
-      style={{
-        width: width || "100%",
-        height: height || "100%",
-      }}
+      style={{ width: width || "100%", height: height || "100%" }}
     >
       <div className={styles.chartWrapper}>
         <div ref={chartContentRef} className={styles.chartContent}>
