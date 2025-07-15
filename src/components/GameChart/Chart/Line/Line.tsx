@@ -3,6 +3,13 @@ import { PriceData, GridCell, GridConfig } from "@/types";
 import { getMinMaxPrice } from "../../../../libs/utils/chartUtils";
 import styles from "./Line.module.scss";
 
+interface PriceZone {
+  row: number;
+  priceMin: number;
+  priceMax: number;
+  label: string;
+}
+
 interface LineProps {
   priceData: PriceData[];
   chartDimensions: { width: number; height: number };
@@ -18,6 +25,7 @@ interface LineProps {
     data: PriceData[];
     startTime: number;
   }[];
+  priceZones: PriceZone[];
 }
 
 const SECONDS_PER_GAME = 30;
@@ -33,6 +41,7 @@ export const Line: React.FC<LineProps> = ({
   currentColumnIndex,
   gameStartTime,
   allGamesData,
+  priceZones,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -40,7 +49,7 @@ export const Line: React.FC<LineProps> = ({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
 
-    if (!canvas || !ctx || gridCells.length === 0) {
+    if (!canvas || !ctx || gridCells.length === 0 || priceZones.length === 0) {
       return;
     }
 
@@ -55,6 +64,15 @@ export const Line: React.FC<LineProps> = ({
 
     const blocksPerRow = gridConfig.cols;
     const blocksPerColumn = gridConfig.rows;
+
+    // Получаем глобальные границы цен из динамических зон
+    const globalMin = Math.min(...priceZones.map((z) => z.priceMin));
+    const globalMax = Math.max(...priceZones.map((z) => z.priceMax));
+
+    // Добавляем небольшой отступ для лучшей визуализации
+    const padding = (globalMax - globalMin) * 0.02;
+    const adjustedMin = globalMin - padding;
+    const adjustedMax = globalMax + padding;
 
     // Helper function to get column cells
     const getColumnCells = (colIndex: number): GridCell[] => {
@@ -86,6 +104,62 @@ export const Line: React.FC<LineProps> = ({
       };
     };
 
+    // Функция для получения зоны по строке
+    const getZoneByRow = (row: number) => {
+      return priceZones.find((zone) => zone.row === row);
+    };
+
+    // Рисуем горизонтальные зоны котировок
+    const drawPriceZones = () => {
+      for (let row = 0; row < blocksPerColumn; row++) {
+        const zone = getZoneByRow(row);
+        if (!zone) continue;
+
+        // Получаем все ячейки в этой строке
+        const rowCells = [];
+        for (let col = 0; col < blocksPerRow; col++) {
+          const cellIndex = row * blocksPerRow + col;
+          if (cellIndex < gridCells.length) {
+            rowCells.push(gridCells[cellIndex]);
+          }
+        }
+
+        if (rowCells.length === 0) continue;
+
+        const firstCell = rowCells[0];
+        const lastCell = rowCells[rowCells.length - 1];
+        const rowTop = firstCell.y;
+        const rowLeft = firstCell.x;
+        const rowRight = lastCell.x + lastCell.width;
+
+        // Рисуем верхнюю границу зоны
+        ctx.strokeStyle = "rgba(252, 229, 124, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(rowLeft, rowTop);
+        ctx.lineTo(rowRight, rowTop);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Подписи зон справа (показываем только каждую третью для читаемости при большом количестве)
+        const labelInterval = Math.max(1, Math.floor(priceZones.length / 10));
+        if (row % labelInterval === 0) {
+          ctx.fillStyle = "rgba(252, 229, 124, 0.8)";
+          ctx.font = "10px Arial";
+          ctx.textAlign = "left";
+          ctx.fillText(
+            `${zone.priceMin.toFixed(3)}-${zone.priceMax.toFixed(3)}`,
+            rowRight + 5,
+            rowTop + 12
+          );
+        }
+      }
+    };
+
+    // Рисуем зоны
+    drawPriceZones();
+
     // Collect all price data including historical and current
     const allPriceData: PriceData[] = [];
 
@@ -99,11 +173,30 @@ export const Line: React.FC<LineProps> = ({
       allPriceData.push(...priceData);
     }
 
-    // Get global min/max for consistent scaling
-    const { min: globalMin, max: globalMax } = getMinMaxPrice(allPriceData);
-    const padding = (globalMax - globalMin) * 0.1 || 1;
-    const minPrice = globalMin - padding;
-    const maxPrice = globalMax + padding;
+    // Функция для преобразования цены в Y-координату с учетом динамических зон
+    const priceToY = (price: number, bounds: any) => {
+      // Нормализуем цену относительно динамического диапазона
+      const normalizedPrice =
+        (price - adjustedMin) / (adjustedMax - adjustedMin);
+      // Инвертируем Y (верх = высокая цена)
+      return (
+        bounds.bottom -
+        normalizedPrice * bounds.height * 0.9 -
+        bounds.height * 0.05
+      );
+    };
+
+    // Функция для определения цвета линии
+    const getLineColor = () => {
+      const gradient = ctx.createLinearGradient(0, 0, chartDimensions.width, 0);
+      gradient.addColorStop(0.0, "#FAE279");
+      gradient.addColorStop(0.2, "#E9BD49");
+      gradient.addColorStop(0.4, "#FCE57C");
+      gradient.addColorStop(0.6, "#FAE279");
+      gradient.addColorStop(0.8, "#FBEBB0");
+      gradient.addColorStop(1.0, "#E9BD49");
+      return gradient;
+    };
 
     // Draw historical games
     allGamesData.forEach((gameData, gameIndex) => {
@@ -114,8 +207,6 @@ export const Line: React.FC<LineProps> = ({
         ctx,
         gameData.data,
         columnBounds,
-        minPrice,
-        maxPrice,
         gameData.startTime,
         false // not current game
       );
@@ -125,8 +216,18 @@ export const Line: React.FC<LineProps> = ({
     const currentColumnBounds = getColumnBounds(currentColumnIndex);
     if (currentColumnBounds && priceData.length > 0) {
       // Highlight current column
-      ctx.fillStyle = "rgba(252, 229, 124, 0.05)";
+      ctx.fillStyle = "rgba(252, 229, 124, 0.1)";
       ctx.fillRect(
+        currentColumnBounds.left,
+        currentColumnBounds.top,
+        currentColumnBounds.width,
+        currentColumnBounds.height
+      );
+
+      // Рамка текущей колонки
+      ctx.strokeStyle = "#FCE57C";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
         currentColumnBounds.left,
         currentColumnBounds.top,
         currentColumnBounds.width,
@@ -137,8 +238,6 @@ export const Line: React.FC<LineProps> = ({
         ctx,
         priceData,
         currentColumnBounds,
-        minPrice,
-        maxPrice,
         gameStartTime,
         true // is current game
       );
@@ -170,28 +269,18 @@ export const Line: React.FC<LineProps> = ({
         width: number;
         height: number;
       },
-      minPrice: number,
-      maxPrice: number,
       startTime: number,
       isCurrent: boolean
     ) {
       if (data.length === 0) return;
 
-      const gradient = ctx.createLinearGradient(
-        bounds.left,
-        0,
-        bounds.right,
-        0
-      );
-      gradient.addColorStop(0.0, "#FAE279");
-      gradient.addColorStop(0.2, "#E9BD49");
-      gradient.addColorStop(0.4, "#FCE57C");
-      gradient.addColorStop(0.6, "#FAE279");
-      gradient.addColorStop(0.8, "#FBEBB0");
-      gradient.addColorStop(1.0, "#E9BD49");
+      const lineWidth = isCurrent ? 3 : 2;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
-      const lineWidth = Math.max(2, bounds.width * 0.02);
-      ctx.strokeStyle = gradient;
+      // Рисуем линию с оригинальным цветом
+      ctx.strokeStyle = getLineColor();
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -206,11 +295,7 @@ export const Line: React.FC<LineProps> = ({
         const timeProgress = Math.min(timeElapsed / SECONDS_PER_GAME, 1);
 
         const x = bounds.left + bounds.width * timeProgress;
-        const normalizedY = (point.price - minPrice) / (maxPrice - minPrice);
-        const y =
-          bounds.bottom -
-          normalizedY * bounds.height * 0.9 -
-          bounds.height * 0.05;
+        const y = priceToY(point.price, bounds);
 
         if (i === 0) {
           ctx.moveTo(x, y);
@@ -252,7 +337,7 @@ export const Line: React.FC<LineProps> = ({
         ctx.fillStyle = "#FFFFFF";
         const fontSize = Math.max(10, bounds.width * 0.15);
         ctx.font = `bold ${fontSize}px Arial`;
-        const priceText = `$${lastData.price.toFixed(2)}`;
+        const priceText = `${lastData.price.toFixed(2)}`;
         const textWidth = ctx.measureText(priceText).width;
 
         let textX = lastX + 10;
@@ -294,18 +379,8 @@ export const Line: React.FC<LineProps> = ({
               currentGame.data[currentGame.data.length - 1].price;
             const firstPrice = nextGame.data[0].price;
 
-            const lastY =
-              currentBounds.bottom -
-              ((lastPrice - minPrice) / (maxPrice - minPrice)) *
-                currentBounds.height *
-                0.9 -
-              currentBounds.height * 0.05;
-            const firstY =
-              nextBounds.bottom -
-              ((firstPrice - minPrice) / (maxPrice - minPrice)) *
-                nextBounds.height *
-                0.9 -
-              nextBounds.height * 0.05;
+            const lastY = priceToY(lastPrice, currentBounds);
+            const firstY = priceToY(firstPrice, nextBounds);
 
             ctx.beginPath();
             ctx.moveTo(currentBounds.right, lastY);
@@ -326,18 +401,8 @@ export const Line: React.FC<LineProps> = ({
             const lastPrice = lastGame.data[lastGame.data.length - 1].price;
             const firstPrice = priceData[0].price;
 
-            const lastY =
-              lastBounds.bottom -
-              ((lastPrice - minPrice) / (maxPrice - minPrice)) *
-                lastBounds.height *
-                0.9 -
-              lastBounds.height * 0.05;
-            const firstY =
-              currentBounds.bottom -
-              ((firstPrice - minPrice) / (maxPrice - minPrice)) *
-                currentBounds.height *
-                0.9 -
-              currentBounds.height * 0.05;
+            const lastY = priceToY(lastPrice, lastBounds);
+            const firstY = priceToY(firstPrice, currentBounds);
 
             ctx.beginPath();
             ctx.moveTo(lastBounds.right, lastY);
@@ -353,6 +418,7 @@ export const Line: React.FC<LineProps> = ({
     // Global status indicator
     ctx.font = "12px Arial";
     ctx.fillStyle = isConnected ? "#FCE57C" : "#FF0000";
+    ctx.textAlign = "left";
     const statusText = isConnected ? "● LIVE" : "● OFFLINE";
     ctx.fillText(statusText, chartDimensions.width - 60, 20);
 
@@ -360,6 +426,19 @@ export const Line: React.FC<LineProps> = ({
     ctx.fillStyle = "#FCE57C";
     ctx.font = "bold 14px Arial";
     ctx.fillText(`Round ${Math.floor(gameNumber / blocksPerRow) + 1}`, 10, 20);
+
+    // Show current price range info
+    if (priceData.length > 0) {
+      const currentPrice = priceData[priceData.length - 1].price;
+      ctx.fillStyle = "#FCE57C";
+      ctx.font = "12px Arial";
+      ctx.fillText(
+        `Price Range: ${adjustedMin.toFixed(3)} - ${adjustedMax.toFixed(3)}`,
+        10,
+        40
+      );
+      ctx.fillText(`Current: ${currentPrice.toFixed(3)}`, 10, 55);
+    }
   }, [
     priceData,
     chartDimensions,
@@ -371,6 +450,7 @@ export const Line: React.FC<LineProps> = ({
     currentColumnIndex,
     gameStartTime,
     allGamesData,
+    priceZones,
   ]);
 
   return <canvas ref={canvasRef} className={styles.canvas} />;
