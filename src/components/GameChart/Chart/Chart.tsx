@@ -34,6 +34,13 @@ const getRowByPrice = (price: number) => {
   return PRICE_ZONES.length - 1; // Возвращаем последнюю строку по умолчанию
 };
 
+// Функция для ограничения цены глобальными границами
+const constrainPrice = (price: number) => {
+  const globalMin = Math.min(...PRICE_ZONES.map((z) => z.priceMin));
+  const globalMax = Math.max(...PRICE_ZONES.map((z) => z.priceMax));
+  return Math.max(globalMin, Math.min(globalMax, price));
+};
+
 // Функция для генерации случайной цены с учетом зон
 const generateRandomPrice = (previousPrice?: number) => {
   const globalMin = Math.min(...PRICE_ZONES.map((z) => z.priceMin));
@@ -44,7 +51,7 @@ const generateRandomPrice = (previousPrice?: number) => {
     // Добавляем случайное изменение к предыдущей цене
     const change = (Math.random() - 0.5) * volatility;
     const newPrice = previousPrice + change;
-    return newPrice; // Убираем ограничение границ
+    return constrainPrice(newPrice);
   } else {
     // Генерируем случайную цену в глобальном диапазоне
     return globalMin + Math.random() * (globalMax - globalMin);
@@ -78,7 +85,6 @@ export const Chart: React.FC<ChartProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartContentRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [blocks, setBlocks] = useState<ChartBlock[]>([]);
   const [chartDimensions, setChartDimensions] = useState({
@@ -95,15 +101,7 @@ export const Chart: React.FC<ChartProps> = ({
     rows: 0,
   });
 
-  // Dynamic grid dimensions
-  const [dynamicGridSize, setDynamicGridSize] = useState({
-    totalCols: 0,
-    totalRows: 0,
-    minPrice: 0,
-    maxPrice: 0,
-  });
-
-  // Game state management
+  // Game state management - возвращаем к оригинальной логике колонок
   const [gameState, setGameState] = useState<GameState>({
     gameNumber: 0,
     startTime: Date.now(),
@@ -139,59 +137,6 @@ export const Chart: React.FC<ChartProps> = ({
     fetchCompetition();
   }, []);
 
-  // Функция для обновления размеров сетки на основе данных
-  const updateDynamicGridSize = useCallback(
-    (allData: PriceData[], currentColumn: number) => {
-      if (allData.length === 0) return;
-
-      const prices = allData.map((p) => p.price);
-      const minPrice = Math.min(...prices);
-      const maxPrice = Math.max(...prices);
-
-      // Расширяем диапазон для зон
-      const priceRange = maxPrice - minPrice;
-      const padding = priceRange * 0.1;
-      const expandedMin = minPrice - padding;
-      const expandedMax = maxPrice + padding;
-
-      // Определяем количество строк на основе диапазона цен
-      const zoneHeight = PRICE_ZONES[0].priceMax - PRICE_ZONES[0].priceMin;
-      const neededRows = Math.max(
-        PRICE_ZONES.length,
-        Math.ceil((expandedMax - expandedMin) / zoneHeight)
-      );
-
-      // Количество колонок - текущая + запас
-      const neededCols = Math.max(currentColumn + 5, blockConfig.blocksPerRow);
-
-      setDynamicGridSize({
-        totalCols: neededCols,
-        totalRows: neededRows,
-        minPrice: expandedMin,
-        maxPrice: expandedMax,
-      });
-    },
-    [blockConfig.blocksPerRow]
-  );
-
-  // Генерация динамических зон цен
-  const generateDynamicPriceZones = useCallback(() => {
-    const { totalRows, minPrice, maxPrice } = dynamicGridSize;
-    const zones = [];
-    const priceStep = (maxPrice - minPrice) / totalRows;
-
-    for (let i = 0; i < totalRows; i++) {
-      zones.push({
-        row: i,
-        priceMin: minPrice + i * priceStep,
-        priceMax: minPrice + (i + 1) * priceStep,
-        label: `Zone ${i + 1}`,
-      });
-    }
-
-    return zones;
-  }, [dynamicGridSize]);
-
   // Генерация цен с учетом зон
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -212,18 +157,31 @@ export const Chart: React.FC<ChartProps> = ({
           ]);
         }
 
-        // Move to next column/game (без ограничений)
+        // Move to next column/game
         const nextColumnIndex = gameState.currentColumnIndex + 1;
 
-        setGameState((prev) => ({
-          gameNumber: prev.gameNumber + 1,
-          startTime: now,
-          priceHistory: [],
-          lastKnownPrice: prev.lastKnownPrice,
-          currentColumnIndex: nextColumnIndex,
-        }));
+        // Check if we've filled all columns
+        if (nextColumnIndex >= blockConfig.blocksPerRow) {
+          // Reset to beginning but keep history
+          setGameState({
+            gameNumber: gameState.gameNumber + 1,
+            startTime: now,
+            priceHistory: [],
+            lastKnownPrice: gameState.lastKnownPrice,
+            currentColumnIndex: 0,
+          });
+        } else {
+          // Start new game in next column
+          setGameState((prev) => ({
+            gameNumber: prev.gameNumber + 1,
+            startTime: now,
+            priceHistory: [],
+            lastKnownPrice: prev.lastKnownPrice,
+            currentColumnIndex: nextColumnIndex,
+          }));
+        }
       } else {
-        // Генерируем новую цену без ограничений
+        // Генерируем новую цену
         const newPrice = generateRandomPrice(
           gameState.lastKnownPrice || undefined
         );
@@ -248,46 +206,30 @@ export const Chart: React.FC<ChartProps> = ({
     gameState.lastKnownPrice,
     gameState.currentColumnIndex,
     gameState.priceHistory.length,
-  ]);
-
-  // Обновляем размеры сетки при изменении данных
-  useEffect(() => {
-    const allPriceData: PriceData[] = [];
-    allGamesData.forEach((game) => {
-      allPriceData.push(...game.data);
-    });
-    if (gameState.priceHistory.length > 0) {
-      allPriceData.push(...gameState.priceHistory);
-    }
-
-    if (allPriceData.length > 0) {
-      updateDynamicGridSize(allPriceData, gameState.currentColumnIndex);
-    }
-  }, [
-    allGamesData,
-    gameState.priceHistory,
-    gameState.currentColumnIndex,
-    updateDynamicGridSize,
+    blockConfig.blocksPerRow,
   ]);
 
   const calculateGrid = useCallback(() => {
     if (chartDimensions.width === 0 || chartDimensions.height === 0) return;
 
-    const { totalCols, totalRows } = dynamicGridSize;
-    if (totalCols === 0 || totalRows === 0) return;
-
+    const cols = blockConfig.blocksPerRow;
+    const rows = blockConfig.blocksPerColumn;
     const gap = Math.max(1, Math.min(4, chartDimensions.width / 200));
-    const cellSize = Math.min(
-      (chartDimensions.width / totalCols) * 0.8,
-      (chartDimensions.height / totalRows) * 0.8
-    );
-
+    const availableWidth = chartDimensions.width - gap * (cols - 1);
+    const availableHeight = chartDimensions.height - gap * (rows - 1);
+    const maxCellWidth = availableWidth / cols;
+    const maxCellHeight = availableHeight / rows;
+    const cellSize = Math.min(maxCellWidth, maxCellHeight);
+    const totalGridWidth = cols * cellSize + (cols - 1) * gap;
+    const totalGridHeight = rows * cellSize + (rows - 1) * gap;
+    const offsetX = (chartDimensions.width - totalGridWidth) / 2;
+    const offsetY = (chartDimensions.height - totalGridHeight) / 2;
     const cells: GridCell[] = [];
 
-    for (let row = 0; row < totalRows; row++) {
-      for (let col = 0; col < totalCols; col++) {
-        const x = col * (cellSize + gap);
-        const y = row * (cellSize + gap);
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = offsetX + col * (cellSize + gap);
+        const y = offsetY + row * (cellSize + gap);
 
         cells.push({
           x,
@@ -305,24 +247,23 @@ export const Chart: React.FC<ChartProps> = ({
       cellWidth: cellSize,
       cellHeight: cellSize,
       gap,
-      cols: totalCols,
-      rows: totalRows,
+      cols,
+      rows,
     });
-  }, [chartDimensions, dynamicGridSize]);
+  }, [chartDimensions, blockConfig]);
 
-  // Генерация блоков на основе динамической сетки
   useEffect(() => {
-    const { totalCols, totalRows } = dynamicGridSize;
-    if (totalCols > 0 && totalRows > 0) {
-      const newBlocks = generateBlocksGrid(totalCols, totalRows);
-      setBlocks(newBlocks);
-    }
-  }, [dynamicGridSize]);
+    const newBlocks = generateBlocksGrid(
+      blockConfig.blocksPerRow,
+      blockConfig.blocksPerColumn
+    );
+    setBlocks(newBlocks);
+  }, [blockConfig.blocksPerRow, blockConfig.blocksPerColumn]);
 
   useEffect(() => {
     const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
+      if (chartContentRef.current) {
+        const rect = chartContentRef.current.getBoundingClientRect();
         const newWidth = rect.width;
         const newHeight = rect.height;
 
@@ -334,8 +275,8 @@ export const Chart: React.FC<ChartProps> = ({
 
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
+    if (chartContentRef.current) {
+      resizeObserver.observe(chartContentRef.current);
     }
 
     return () => resizeObserver.disconnect();
@@ -344,21 +285,6 @@ export const Chart: React.FC<ChartProps> = ({
   useEffect(() => {
     calculateGrid();
   }, [calculateGrid]);
-
-  // Автоматический скролл к текущей колонке
-  useEffect(() => {
-    if (scrollContainerRef.current && gridConfig.cellWidth > 0) {
-      const currentX =
-        gameState.currentColumnIndex * (gridConfig.cellWidth + gridConfig.gap);
-      const containerWidth = scrollContainerRef.current.clientWidth;
-      const scrollLeft = Math.max(0, currentX - containerWidth / 2);
-
-      scrollContainerRef.current.scrollTo({
-        left: scrollLeft,
-        behavior: "smooth",
-      });
-    }
-  }, [gameState.currentColumnIndex, gridConfig]);
 
   const handleBlockClick = useCallback((blockId: string) => {
     setBlocks((prev) =>
@@ -374,13 +300,6 @@ export const Chart: React.FC<ChartProps> = ({
     1.0
   );
 
-  // Получаем динамические зоны цен
-  const dynamicPriceZones = generateDynamicPriceZones();
-
-  // Вычисляем общую ширину контента
-  const contentWidth =
-    gridConfig.cols * (gridConfig.cellWidth + gridConfig.gap);
-
   return (
     <div
       ref={containerRef}
@@ -391,62 +310,31 @@ export const Chart: React.FC<ChartProps> = ({
       }}
     >
       <div className={styles.chartWrapper}>
-        <div
-          ref={scrollContainerRef}
-          className={styles.scrollContainer}
-          style={{
-            width: "100%",
-            height: "100%",
-            overflowX: "auto",
-            overflowY: "auto",
-          }}
-        >
-          <div
-            ref={chartContentRef}
-            className={styles.chartContent}
-            style={{
-              width: Math.max(contentWidth, chartDimensions.width),
-              height: Math.max(
-                gridConfig.rows * (gridConfig.cellHeight + gridConfig.gap),
-                chartDimensions.height
-              ),
-              position: "relative",
-            }}
-          >
-            <BlockGrid
-              blocks={blocks}
-              onBlockClick={handleBlockClick}
-              className={styles.blockGrid}
-              blocksPerRow={gridConfig.cols}
-              blocksPerColumn={gridConfig.rows}
-              containerWidth={Math.max(contentWidth, chartDimensions.width)}
-              containerHeight={Math.max(
-                gridConfig.rows * (gridConfig.cellHeight + gridConfig.gap),
-                chartDimensions.height
-              )}
-              gridCells={gridCells}
-              gridConfig={gridConfig}
-            />
-            <Line
-              priceData={gameState.priceHistory}
-              chartDimensions={{
-                width: Math.max(contentWidth, chartDimensions.width),
-                height: Math.max(
-                  gridConfig.rows * (gridConfig.cellHeight + gridConfig.gap),
-                  chartDimensions.height
-                ),
-              }}
-              isConnected={isConnected}
-              gridCells={gridCells}
-              gridConfig={gridConfig}
-              gameProgress={gameProgress}
-              gameNumber={gameState.gameNumber}
-              currentColumnIndex={gameState.currentColumnIndex}
-              gameStartTime={gameState.startTime}
-              allGamesData={allGamesData}
-              priceZones={dynamicPriceZones}
-            />
-          </div>
+        <div ref={chartContentRef} className={styles.chartContent}>
+          <BlockGrid
+            blocks={blocks}
+            onBlockClick={handleBlockClick}
+            className={styles.blockGrid}
+            blocksPerRow={blockConfig.blocksPerRow}
+            blocksPerColumn={blockConfig.blocksPerColumn}
+            containerWidth={chartDimensions.width}
+            containerHeight={chartDimensions.height}
+            gridCells={gridCells}
+            gridConfig={gridConfig}
+          />
+          <Line
+            priceData={gameState.priceHistory}
+            chartDimensions={chartDimensions}
+            isConnected={isConnected}
+            gridCells={gridCells}
+            gridConfig={gridConfig}
+            gameProgress={gameProgress}
+            gameNumber={gameState.gameNumber}
+            currentColumnIndex={gameState.currentColumnIndex}
+            gameStartTime={gameState.startTime}
+            allGamesData={allGamesData}
+            priceZones={PRICE_ZONES}
+          />
         </div>
       </div>
     </div>
