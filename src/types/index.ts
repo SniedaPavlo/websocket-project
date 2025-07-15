@@ -14,11 +14,8 @@ export interface ChartBlock {
   row?: number;
   col?: number;
   bananas?: number;
-  potValue?: string;
   mainText?: string;
   subText?: string;
-  //-------------------- when need a plus btn
-  status?: "loading" | "canPlusBet";
 }
 
 export interface GridCell {

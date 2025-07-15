@@ -3,7 +3,6 @@
 
 .block {
   --text-scale: 1.07;
-  --base-top-right-size: 0.856rem;
   --base-main-size: 2.14rem;
   --base-sub-size: 0.963rem;
   background-color: $block-color;
@@ -49,20 +48,13 @@
   padding: 2px;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-.plusButton {
-  background-color: none;
-}
-
-.headerWrapper {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
+  position: relative;
 }
 
 .topLeft {
+  position: absolute;
+  top: 2px;
+  left: 2px;
   display: flex;
   align-items: center;
 
@@ -79,29 +71,13 @@
     gap: 2px;
 
     .multiplier {
-      font-family: "Instrument Serif", serif;
+      font-family: "VT323", monospace;
       font-weight: 400;
       font-size: calc(var(--base-sub-size) * var(--text-scale) * 0.9);
       color: $text-color;
       white-space: nowrap;
       line-height: 1;
     }
-  }
-}
-
-.topRight {
-  font-family: "Instrument Serif", serif;
-  font-weight: 400;
-  font-size: calc(var(--base-top-right-size) * var(--text-scale));
-  color: $text-sub-color;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-  flex-shrink: 1;
-
-  &:has-text-overflow {
-    font-size: calc(var(--base-top-right-size) * var(--text-scale) * 0.8);
   }
 }
 
@@ -112,10 +88,11 @@
   justify-content: center;
   text-align: center;
   width: 100%;
+  flex: 1;
 }
 
 .mainText {
-  font-family: "Instrument Serif", serif;
+  font-family: "VT323", monospace;
   font-weight: 400;
   font-size: calc(var(--base-main-size) * var(--text-scale));
   color: $text-color;
@@ -126,7 +103,7 @@
 }
 
 .subText {
-  font-family: "Instrument Serif", serif;
+  font-family: "VT323", monospace;
   font-weight: 400;
   font-size: calc(var(--base-sub-size) * var(--text-scale));
   line-height: 1;

@@ -25,14 +25,6 @@ export const generateBlocks = (
       const x = col * (blockWidth + gap) + gap;
       const y = row * (adjustedBlockHeight + gap) + gap;
 
-      // Random status assignment for demonstration
-      const randomStatus =
-        Math.random() < 0.3
-          ? Math.random() < 0.5
-            ? "loading"
-            : "canPlusBet"
-          : undefined;
-
       blocks.push({
         id,
         x,
@@ -42,7 +34,6 @@ export const generateBlocks = (
         isActive: false,
         row,
         col,
-        status: randomStatus,
       });
     }
   }
@@ -62,14 +53,6 @@ export const generateBlocksGrid = (
     for (let col = 0; col < blocksPerRow; col++) {
       const id = `block-${row}-${col}`;
 
-      // Random status assignment for demonstration
-      const randomStatus =
-        Math.random() < 0.3
-          ? Math.random() < 0.5
-            ? "loading"
-            : "canPlusBet"
-          : undefined;
-
       blocks.push({
         id,
         x: 0, // Will be recalculated in the component
@@ -79,48 +62,14 @@ export const generateBlocksGrid = (
         isActive: false,
         row,
         col,
-        bananas: Math.floor(Math.random() * 6) + 1, // 1-6 бананов
-        potValue: `POT: $${Math.floor(Math.random() * 100) + 10}`,
+        bananas: Math.floor(Math.random() * 6) + 1, // 1-6 bananas
         mainText: `${(Math.random() * 3 + 0.5).toFixed(1)}x`,
         subText: `$${Math.floor(Math.random() * 10000) + 1000}`,
-        status: randomStatus,
       });
     }
   }
 
   return blocks;
-};
-
-// Utility function to update block status
-export const updateBlockStatus = (
-  blocks: ChartBlock[],
-  blockId: string,
-  status: "loading" | "canPlusBet" | undefined
-): ChartBlock[] => {
-  return blocks.map((block) =>
-    block.id === blockId ? { ...block, status } : block
-  );
-};
-
-// Utility function to get blocks by status
-export const getBlocksByStatus = (
-  blocks: ChartBlock[],
-  status: "loading" | "canPlusBet"
-): ChartBlock[] => {
-  return blocks.filter((block) => block.status === status);
-};
-
-// Utility function to check if block has specific status
-export const hasStatus = (
-  block: ChartBlock,
-  status: "loading" | "canPlusBet"
-): boolean => {
-  return block.status === status;
-};
-
-// Utility function to clear all statuses
-export const clearAllStatuses = (blocks: ChartBlock[]): ChartBlock[] => {
-  return blocks.map((block) => ({ ...block, status: undefined }));
 };
 
 export const normalizePrice = (
@@ -148,7 +97,3 @@ export const getMinMaxPrice = (
 export const formatPrice = (price: number): string => {
   return `$${price.toFixed(2)}`;
 };
-
-//
-//
-//
