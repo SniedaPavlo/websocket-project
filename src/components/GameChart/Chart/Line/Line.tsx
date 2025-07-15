@@ -13,6 +13,11 @@ interface LineProps {
   gameNumber: number;
   currentColumnIndex: number;
   gameStartTime: number;
+  allGamesData: {
+    columnIndex: number;
+    data: PriceData[];
+    startTime: number;
+  }[];
 }
 
 const SECONDS_PER_GAME = 30;
@@ -27,6 +32,7 @@ export const Line: React.FC<LineProps> = ({
   gameNumber,
   currentColumnIndex,
   gameStartTime,
+  allGamesData,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -47,51 +53,136 @@ export const Line: React.FC<LineProps> = ({
 
     ctx.clearRect(0, 0, chartDimensions.width, chartDimensions.height);
 
-    // Get current column boundaries
     const blocksPerRow = gridConfig.cols;
     const blocksPerColumn = gridConfig.rows;
 
-    // Get all cells in current column
-    const columnCells: GridCell[] = [];
-    for (let row = 0; row < blocksPerColumn; row++) {
-      const cellIndex = row * blocksPerRow + currentColumnIndex;
-      if (cellIndex < gridCells.length) {
-        columnCells.push(gridCells[cellIndex]);
+    // Helper function to get column cells
+    const getColumnCells = (colIndex: number): GridCell[] => {
+      const cells: GridCell[] = [];
+      for (let row = 0; row < blocksPerColumn; row++) {
+        const cellIndex = row * blocksPerRow + colIndex;
+        if (cellIndex < gridCells.length) {
+          cells.push(gridCells[cellIndex]);
+        }
       }
+      return cells;
+    };
+
+    // Helper function to get column boundaries
+    const getColumnBounds = (colIndex: number) => {
+      const cells = getColumnCells(colIndex);
+      if (cells.length === 0) return null;
+
+      return {
+        left: cells[0].x,
+        right: cells[0].x + cells[0].width,
+        top: cells[0].y,
+        bottom: cells[cells.length - 1].y + cells[cells.length - 1].height,
+        width: cells[0].width,
+        height:
+          cells[cells.length - 1].y +
+          cells[cells.length - 1].height -
+          cells[0].y,
+      };
+    };
+
+    // Collect all price data including historical and current
+    const allPriceData: PriceData[] = [];
+
+    // Add historical games data
+    allGamesData.forEach((game) => {
+      allPriceData.push(...game.data);
+    });
+
+    // Add current game data
+    if (priceData.length > 0) {
+      allPriceData.push(...priceData);
     }
 
-    if (columnCells.length === 0) return;
+    // Get global min/max for consistent scaling
+    const { min: globalMin, max: globalMax } = getMinMaxPrice(allPriceData);
+    const padding = (globalMax - globalMin) * 0.1 || 1;
+    const minPrice = globalMin - padding;
+    const maxPrice = globalMax + padding;
 
-    // Calculate column boundaries
-    const columnLeft = columnCells[0].x;
-    const columnRight = columnCells[0].x + columnCells[0].width;
-    const columnTop = columnCells[0].y;
-    const columnBottom =
-      columnCells[columnCells.length - 1].y +
-      columnCells[columnCells.length - 1].height;
-    const columnWidth = columnRight - columnLeft;
-    const columnHeight = columnBottom - columnTop;
+    // Draw historical games
+    allGamesData.forEach((gameData, gameIndex) => {
+      const columnBounds = getColumnBounds(gameData.columnIndex);
+      if (!columnBounds || gameData.data.length === 0) return;
 
-    // Draw column highlight (optional - for debugging)
-    ctx.strokeStyle = "rgba(252, 229, 124, 0.1)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(columnLeft, columnTop, columnWidth, columnHeight);
+      drawGameLine(
+        ctx,
+        gameData.data,
+        columnBounds,
+        minPrice,
+        maxPrice,
+        gameData.startTime,
+        false // not current game
+      );
+    });
 
-    if (priceData.length > 0) {
-      // Filter data for current game only
-      const currentGameData = priceData.filter(
-        (p) => p.timestamp >= gameStartTime
+    // Draw current game
+    const currentColumnBounds = getColumnBounds(currentColumnIndex);
+    if (currentColumnBounds && priceData.length > 0) {
+      // Highlight current column
+      ctx.fillStyle = "rgba(252, 229, 124, 0.05)";
+      ctx.fillRect(
+        currentColumnBounds.left,
+        currentColumnBounds.top,
+        currentColumnBounds.width,
+        currentColumnBounds.height
       );
 
-      if (currentGameData.length === 0) return;
+      drawGameLine(
+        ctx,
+        priceData,
+        currentColumnBounds,
+        minPrice,
+        maxPrice,
+        gameStartTime,
+        true // is current game
+      );
 
-      const { min, max } = getMinMaxPrice(currentGameData);
-      const padding = (max - min) * 0.1 || 1;
-      const minPrice = min - padding;
-      const maxPrice = max + padding;
+      // Draw game timer at bottom of current column
+      const remainingTime = Math.ceil(
+        SECONDS_PER_GAME - gameProgress * SECONDS_PER_GAME
+      );
+      ctx.fillStyle = "#FCE57C";
+      ctx.font = `bold 12px Arial`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `${remainingTime}s`,
+        currentColumnBounds.left + currentColumnBounds.width / 2,
+        currentColumnBounds.bottom + 20
+      );
+      ctx.textAlign = "left";
+    }
 
-      // Create gradient for the line
-      const gradient = ctx.createLinearGradient(columnLeft, 0, columnRight, 0);
+    // Draw function for a single game
+    function drawGameLine(
+      ctx: CanvasRenderingContext2D,
+      data: PriceData[],
+      bounds: {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+        width: number;
+        height: number;
+      },
+      minPrice: number,
+      maxPrice: number,
+      startTime: number,
+      isCurrent: boolean
+    ) {
+      if (data.length === 0) return;
+
+      const gradient = ctx.createLinearGradient(
+        bounds.left,
+        0,
+        bounds.right,
+        0
+      );
       gradient.addColorStop(0.0, "#FAE279");
       gradient.addColorStop(0.2, "#E9BD49");
       gradient.addColorStop(0.4, "#FCE57C");
@@ -99,7 +190,7 @@ export const Line: React.FC<LineProps> = ({
       gradient.addColorStop(0.8, "#FBEBB0");
       gradient.addColorStop(1.0, "#E9BD49");
 
-      const lineWidth = Math.max(2, columnWidth * 0.02);
+      const lineWidth = Math.max(2, bounds.width * 0.02);
       ctx.strokeStyle = gradient;
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
@@ -110,25 +201,20 @@ export const Line: React.FC<LineProps> = ({
       let lastX = 0;
       let lastY = 0;
 
-      // Draw the price line within the column
-      currentGameData.forEach((data, i) => {
-        // Calculate time progress within the game (0 to 1)
-        const timeElapsed = (data.timestamp - gameStartTime) / 1000; // seconds
+      data.forEach((point, i) => {
+        const timeElapsed = (point.timestamp - startTime) / 1000;
         const timeProgress = Math.min(timeElapsed / SECONDS_PER_GAME, 1);
 
-        // X position: moves from left to right of the column based on time
-        const x = columnLeft + columnWidth * timeProgress;
-
-        // Y position: based on price relative to column height
-        const normalizedY = (data.price - minPrice) / (maxPrice - minPrice);
-        // Invert Y because canvas coordinates are top-down
+        const x = bounds.left + bounds.width * timeProgress;
+        const normalizedY = (point.price - minPrice) / (maxPrice - minPrice);
         const y =
-          columnBottom - normalizedY * columnHeight * 0.9 - columnHeight * 0.05;
+          bounds.bottom -
+          normalizedY * bounds.height * 0.9 -
+          bounds.height * 0.05;
 
         if (i === 0) {
           ctx.moveTo(x, y);
         } else {
-          // Draw smooth curve between points
           const cpx = (lastX + x) / 2;
           const cpy = (lastY + y) / 2;
           ctx.quadraticCurveTo(lastX, lastY, cpx, cpy);
@@ -138,17 +224,16 @@ export const Line: React.FC<LineProps> = ({
         lastY = y;
       });
 
-      // Final line segment
-      if (currentGameData.length > 1) {
+      if (data.length > 1) {
         ctx.lineTo(lastX, lastY);
       }
 
       ctx.stroke();
 
-      // Draw the current price point
-      if (currentGameData.length > 0) {
-        const pointRadius = Math.max(3, columnWidth * 0.05);
-        const pointOuterRadius = Math.max(6, columnWidth * 0.1);
+      // Draw end point for current game
+      if (isCurrent && data.length > 0) {
+        const pointRadius = Math.max(3, bounds.width * 0.05);
+        const pointOuterRadius = Math.max(6, bounds.width * 0.1);
 
         // Outer glow
         ctx.fillStyle = "rgba(252, 229, 124, 0.3)";
@@ -163,73 +248,106 @@ export const Line: React.FC<LineProps> = ({
         ctx.fill();
 
         // Price label
-        const lastData = currentGameData[currentGameData.length - 1];
+        const lastData = data[data.length - 1];
         ctx.fillStyle = "#FFFFFF";
-        const fontSize = Math.max(10, columnWidth * 0.15);
+        const fontSize = Math.max(10, bounds.width * 0.15);
         ctx.font = `bold ${fontSize}px Arial`;
         const priceText = `$${lastData.price.toFixed(2)}`;
         const textWidth = ctx.measureText(priceText).width;
 
-        // Position text to avoid column edges
         let textX = lastX + 10;
-        if (textX + textWidth > columnRight - 5) {
+        if (textX + textWidth > bounds.right - 5) {
           textX = lastX - textWidth - 10;
         }
 
         ctx.fillText(priceText, textX, lastY);
+
+        // Progress line
+        const currentX = bounds.left + bounds.width * gameProgress;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(currentX, bounds.top);
+        ctx.lineTo(currentX, bounds.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // Connect lines between columns
+    if (allGamesData.length > 0) {
+      ctx.strokeStyle = "rgba(252, 229, 124, 0.5)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+
+      for (let i = 0; i < allGamesData.length - 1; i++) {
+        const currentGame = allGamesData[i];
+        const nextGame = allGamesData[i + 1];
+
+        if (currentGame.data.length > 0 && nextGame.data.length > 0) {
+          const currentBounds = getColumnBounds(currentGame.columnIndex);
+          const nextBounds = getColumnBounds(nextGame.columnIndex);
+
+          if (currentBounds && nextBounds) {
+            const lastPrice =
+              currentGame.data[currentGame.data.length - 1].price;
+            const firstPrice = nextGame.data[0].price;
+
+            const lastY =
+              currentBounds.bottom -
+              ((lastPrice - minPrice) / (maxPrice - minPrice)) *
+                currentBounds.height *
+                0.9 -
+              currentBounds.height * 0.05;
+            const firstY =
+              nextBounds.bottom -
+              ((firstPrice - minPrice) / (maxPrice - minPrice)) *
+                nextBounds.height *
+                0.9 -
+              nextBounds.height * 0.05;
+
+            ctx.beginPath();
+            ctx.moveTo(currentBounds.right, lastY);
+            ctx.lineTo(nextBounds.left, firstY);
+            ctx.stroke();
+          }
+        }
       }
 
-      // Draw vertical progress line
-      const currentX = columnLeft + columnWidth * gameProgress;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath();
-      ctx.moveTo(currentX, columnTop);
-      ctx.lineTo(currentX, columnBottom);
-      ctx.stroke();
+      // Connect last historical to current
+      if (priceData.length > 0 && allGamesData.length > 0) {
+        const lastGame = allGamesData[allGamesData.length - 1];
+        if (lastGame.data.length > 0) {
+          const lastBounds = getColumnBounds(lastGame.columnIndex);
+          const currentBounds = getColumnBounds(currentColumnIndex);
+
+          if (lastBounds && currentBounds) {
+            const lastPrice = lastGame.data[lastGame.data.length - 1].price;
+            const firstPrice = priceData[0].price;
+
+            const lastY =
+              lastBounds.bottom -
+              ((lastPrice - minPrice) / (maxPrice - minPrice)) *
+                lastBounds.height *
+                0.9 -
+              lastBounds.height * 0.05;
+            const firstY =
+              currentBounds.bottom -
+              ((firstPrice - minPrice) / (maxPrice - minPrice)) *
+                currentBounds.height *
+                0.9 -
+              currentBounds.height * 0.05;
+
+            ctx.beginPath();
+            ctx.moveTo(lastBounds.right, lastY);
+            ctx.lineTo(currentBounds.left, firstY);
+            ctx.stroke();
+          }
+        }
+      }
+
       ctx.setLineDash([]);
-
-      // Draw game timer at bottom of column
-      const remainingTime = Math.ceil(
-        SECONDS_PER_GAME - gameProgress * SECONDS_PER_GAME
-      );
-      ctx.fillStyle = "#FCE57C";
-      ctx.font = `bold 12px Arial`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-        `${remainingTime}s`,
-        columnLeft + columnWidth / 2,
-        columnBottom + 20
-      );
-      ctx.textAlign = "left";
-
-      // Draw column number
-      ctx.fillStyle = "rgba(252, 229, 124, 0.6)";
-      ctx.font = `10px Arial`;
-      ctx.fillText(
-        `Game ${currentColumnIndex + 1}`,
-        columnLeft + 5,
-        columnTop - 5
-      );
-    } else if (isConnected) {
-      // Waiting for data - show in current column
-      ctx.fillStyle = "rgba(252, 229, 124, 0.1)";
-      const boxWidth = Math.min(150, columnWidth * 0.8);
-      const boxHeight = 40;
-      const boxX = columnLeft + (columnWidth - boxWidth) / 2;
-      const boxY = columnTop + (columnHeight - boxHeight) / 2;
-
-      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-      ctx.fillStyle = "#FCE57C";
-      ctx.font = "12px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(
-        "Waiting for data...",
-        columnLeft + columnWidth / 2,
-        boxY + 25
-      );
-      ctx.textAlign = "left";
     }
 
     // Global status indicator
@@ -252,6 +370,7 @@ export const Line: React.FC<LineProps> = ({
     gameNumber,
     currentColumnIndex,
     gameStartTime,
+    allGamesData,
   ]);
 
   return <canvas ref={canvasRef} className={styles.canvas} />;

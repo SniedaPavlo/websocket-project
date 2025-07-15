@@ -63,8 +63,14 @@ export const Chart: React.FC<ChartProps> = ({
     currentColumnIndex: 0,
   });
 
-  // Visualization data that updates smoothly
-  const [visualPriceData, setVisualPriceData] = useState<PriceData[]>([]);
+  // All historical price data across all games
+  const [allGamesData, setAllGamesData] = useState<
+    {
+      columnIndex: number;
+      data: PriceData[];
+      startTime: number;
+    }[]
+  >([]);
 
   const { blockConfig } = useResponsive();
   const { priceData, isConnected } = useWebSocketPrice({ feed });
@@ -103,20 +109,31 @@ export const Chart: React.FC<ChartProps> = ({
 
       // Check if current game should end
       if (gameElapsed >= GAME_DURATION) {
+        // Save current game data before moving to next
+        if (gameState.priceHistory.length > 0) {
+          setAllGamesData((prev) => [
+            ...prev,
+            {
+              columnIndex: gameState.currentColumnIndex,
+              data: gameState.priceHistory,
+              startTime: gameState.startTime,
+            },
+          ]);
+        }
+
         // Move to next column/game
         const nextColumnIndex = gameState.currentColumnIndex + 1;
 
         // Check if we've filled all columns
         if (nextColumnIndex >= blockConfig.blocksPerRow) {
-          // Reset to beginning
+          // Reset to beginning but keep history
           setGameState({
-            gameNumber: 0,
+            gameNumber: gameState.gameNumber + 1,
             startTime: now,
             priceHistory: [],
             lastKnownPrice: gameState.lastKnownPrice,
             currentColumnIndex: 0,
           });
-          setVisualPriceData([]);
         } else {
           // Start new game in next column
           setGameState((prev) => ({
@@ -128,25 +145,16 @@ export const Chart: React.FC<ChartProps> = ({
           }));
         }
       } else if (gameState.lastKnownPrice !== null) {
-        // Update visualization with smooth interpolation
-        const secondsElapsed = gameElapsed / 1000;
-
-        // Create data point for current moment
-        const newVisualPoint: PriceData = {
+        // Update current game's price history
+        const newPricePoint: PriceData = {
           price: gameState.lastKnownPrice,
           timestamp: now,
         };
 
-        // Store this as part of the game's price history
-        setVisualPriceData((prev) => {
-          // Keep only data for current game
-          const currentGameData = prev.filter(
-            (p) => p.timestamp >= gameState.startTime
-          );
-
-          // Add new point
-          return [...currentGameData, newVisualPoint];
-        });
+        setGameState((prev) => ({
+          ...prev,
+          priceHistory: [...prev.priceHistory, newPricePoint],
+        }));
       }
     }, UPDATE_INTERVAL);
 
@@ -156,6 +164,7 @@ export const Chart: React.FC<ChartProps> = ({
     gameState.gameNumber,
     gameState.lastKnownPrice,
     gameState.currentColumnIndex,
+    gameState.priceHistory.length,
     blockConfig.blocksPerRow,
   ]);
 
@@ -273,7 +282,7 @@ export const Chart: React.FC<ChartProps> = ({
             gridConfig={gridConfig}
           />
           <Line
-            priceData={visualPriceData}
+            priceData={gameState.priceHistory}
             chartDimensions={chartDimensions}
             isConnected={isConnected}
             gridCells={gridCells}
@@ -282,6 +291,7 @@ export const Chart: React.FC<ChartProps> = ({
             gameNumber={gameState.gameNumber}
             currentColumnIndex={gameState.currentColumnIndex}
             gameStartTime={gameState.startTime}
+            allGamesData={allGamesData}
           />
         </div>
       </div>
